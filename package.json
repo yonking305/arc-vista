@@ -1,18 +1,18 @@
 {
   "name": "dsh-arcvista",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "type": "module",
   "description": "ArcVista 观界 —— DSH 内的架构观测台：架构图、安全守护、业务知识图谱、复杂度与分支风险对比",
   "license": "MIT",
-  "author": "rogue-raiders",
-  "homepage": "https://gitee.com/rogue-raiders/arc-vista",
+  "author": "yonking305",
+  "homepage": "https://github.com/yonking305/arc-vista",
   "repository": {
     "type": "git",
-    "url": "git+https://gitee.com/rogue-raiders/arc-vista.git"
+    "url": "git+https://github.com/yonking305/arc-vista.git"
   },
   "bugs": {
-    "url": "https://gitee.com/rogue-raiders/arc-vista/issues"
+    "url": "https://github.com/yonking305/arc-vista/issues"
   },
   "keywords": [
     "deepseek-harness",

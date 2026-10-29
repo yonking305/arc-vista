@@ -32,7 +32,7 @@ ArcVista 把这些问题做成一个可以直接下钻的看板，而不是一�
 
 ### 安装
 
-从 GitHub 镜像安装（推荐，固定 Commit 更安全）：
+从 GitHub 安装（推荐，固定 Commit 更安全）：
 
 ```bash
 dsh plugin --profile web add https://github.com/yonking305/arc-vista.git
@@ -53,9 +53,8 @@ dsh plugin --profile web add /absolute/path/to/arc-vista
 ### 发布与商店
 
 - 发布包名：`dsh-arcvista`
-- 仓库：<https://gitee.com/rogue-raiders/arc-vista>
+- 仓库：<https://github.com/yonking305/arc-vista>
 - 当前声明兼容 DSH：`0.2.0-rc.2`
-- 待办：DSH-Store 目前只收录 **GitHub** 仓库，Gitee 源需要同步一个公开的 GitHub 镜像后再提交上架 Issue。
 
 > 插件 Host 代码更新后需要重启一次 DSH 才会加载新模块；只改页面样式 / 前端逻辑时刷新页面即可。
 
