@@ -30,7 +30,21 @@ ArcVista 把这些问题做成一个可以直接下钻的看板，而不是一�
 - 主题跟随 DSH 的浅色 / 深色模式（映射到 `daylight` / `obsidian`），内嵌页面隐藏了 ArcVista 原来的左侧栏；
 - 插件随 DSH 启动而加载，无需手动维护端口或进程。
 
-### 本地安装 / 开发
+### 安装
+
+从 GitHub 镜像安装（推荐，固定 Commit 更安全）：
+
+```bash
+dsh plugin --profile web add https://github.com/yonking305/arc-vista.git
+```
+
+发布到 npm 后也可以直接安装：
+
+```bash
+dsh plugin --profile web add dsh-arcvista
+```
+
+本地开发：
 
 ```bash
 dsh plugin --profile web add /absolute/path/to/arc-vista
