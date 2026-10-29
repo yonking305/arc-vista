@@ -1,0 +1,80 @@
+{
+  "name": "dsh-arcvista",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "ArcVista 观界 —— DSH 内的架构观测台：架构图、安全守护、业务知识图谱、复杂度与分支风险对比",
+  "license": "MIT",
+  "author": "rogue-raiders",
+  "homepage": "https://gitee.com/rogue-raiders/arc-vista",
+  "repository": {
+    "type": "git",
+    "url": "git+https://gitee.com/rogue-raiders/arc-vista.git"
+  },
+  "bugs": {
+    "url": "https://gitee.com/rogue-raiders/arc-vista/issues"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "architecture",
+    "architecture-visualization",
+    "security",
+    "knowledge-graph",
+    "complexity",
+    "code-analysis",
+    "git"
+  ],
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "server.js",
+    "lib/**",
+    "public/**",
+    "cordis.patch.yml",
+    "icon.svg",
+    "locale/*.json",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server.js",
+    "dev": "node --disable-warning=ExperimentalWarning --watch server.js",
+    "test": "node --disable-warning=ExperimentalWarning --test tests/*.test.js",
+    "prepack": "node --disable-warning=ExperimentalWarning scripts/check-package.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-locale"
+      ]
+    },
+    "compatibility": {
+      "dshReleases": {
+        "0.2.0-rc.2": "compatible"
+      }
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

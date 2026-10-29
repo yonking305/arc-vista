@@ -1,0 +1,343 @@
+/* =========================================================================
+   ArcVista — skins / themes
+   Each theme overrides the colour system; layout lives in app/dashboard/diagram.
+   Loaded after app.css so these blocks win over the base :root defaults.
+   ========================================================================= */
+
+:root,
+[data-theme="obsidian"] {
+  color-scheme: dark;
+  --ambient-a: color-mix(in srgb, var(--amber) 7.5%, transparent);
+  --ambient-b: color-mix(in srgb, var(--teal) 5.5%, transparent);
+  --ambient-c: color-mix(in srgb, var(--blue) 5%, transparent);
+  --bg: #06090d;
+  --bg-2: #080d13;
+  --panel: #0c121a;
+  --panel-2: #101823;
+  --panel-3: #0a1017;
+  --line: rgb(154 178 200 / 0.13);
+  --line-soft: rgb(154 178 200 / 0.07);
+  --line-strong: rgb(178 202 222 / 0.28);
+  --text: #ece7d9;
+  --text-dim: #9aa7b5;
+  --text-faint: #5f6c7b;
+  --amber: #ffb054;
+  --amber-deep: #e8852c;
+  --amber-glow: rgb(255 176 84 / 0.22);
+  --teal: #4fe3c1;
+  --teal-glow: rgb(79 227 193 / 0.2);
+  --red: #ff6157;
+  --red-glow: rgb(255 97 87 / 0.2);
+  --blue: #7fb3ff;
+  --violet: #b7a4ff;
+  --good: var(--teal);
+  --warn: var(--amber);
+  --bad: var(--red);
+  --accent-ink: #17110a;
+  --ink-rgb: 154 178 200;
+  --bg-rgb: 6 9 13;
+  --surface-rgb: 10 16 23;
+  --surface-hi-rgb: 17 25 35;
+  --surface-lo-rgb: 8 12 17;
+  --backdrop-rgb: 3 6 9;
+  --shadow-rgb: 0 0 0;
+  --shadow: 0 24px 60px rgb(0 0 0 / 0.45);
+  --grid-alpha-1: 0.055;
+  --grid-alpha-2: 0.028;
+  --grain-opacity: 0.035;
+  --node-fill-hi: #121c27;
+  --node-fill-lo: #0b1219;
+  --edge-sync: #9fb0bf;
+  --edge-async: #b7a4ff;
+  --edge-data: #4fe3c1;
+  --edge-depends: #6b7787;
+  --kind-domain: #ffb054;
+  --kind-capability: #7fb3ff;
+  --kind-entity: #4fe3c1;
+  --kind-api: #9aa7b5;
+  --kind-event: #b7a4ff;
+  --kind-datastore: #4fe3c1;
+  --kind-actor: #ece7d9;
+  --node-accent-frontend: #7fb3ff;
+  --node-accent-gateway: #b7a4ff;
+  --node-accent-service: #ffb054;
+  --node-accent-shared: #8fa3b8;
+  --node-accent-data: #4fe3c1;
+  --node-accent-infra: #6c7d90;
+  --node-accent-external: #b7a4ff;
+}
+
+[data-theme="blueprint"] {
+  color-scheme: dark;
+  --ambient-a: color-mix(in srgb, var(--amber) 9%, transparent);
+  --ambient-b: color-mix(in srgb, var(--teal) 6%, transparent);
+  --ambient-c: color-mix(in srgb, var(--blue) 7%, transparent);
+  --bg: #04121d;
+  --bg-2: #061826;
+  --panel: #071e2e;
+  --panel-2: #0a2638;
+  --panel-3: #051826;
+  --line: rgb(130 180 205 / 0.16);
+  --line-soft: rgb(130 180 205 / 0.08);
+  --line-strong: rgb(140 200 230 / 0.34);
+  --text: #dff2ff;
+  --text-dim: #8fb6cd;
+  --text-faint: #527d99;
+  --amber: #62d0ff;
+  --amber-deep: #2aa6e0;
+  --amber-glow: rgb(98 208 255 / 0.24);
+  --teal: #66f0c9;
+  --teal-glow: rgb(102 240 201 / 0.2);
+  --red: #ff7a7a;
+  --red-glow: rgb(255 122 122 / 0.2);
+  --blue: #9cc8ff;
+  --violet: #b9a6ff;
+  --accent-ink: #03202e;
+  --ink-rgb: 130 180 205;
+  --bg-rgb: 4 18 29;
+  --surface-rgb: 7 26 40;
+  --surface-hi-rgb: 9 34 50;
+  --surface-lo-rgb: 5 20 31;
+  --backdrop-rgb: 2 10 17;
+  --shadow-rgb: 0 6 14;
+  --shadow: 0 24px 60px rgb(0 6 14 / 0.5);
+  --grid-alpha-1: 0.075;
+  --grid-alpha-2: 0.04;
+  --grain-opacity: 0.03;
+  --node-fill-hi: #0a2638;
+  --node-fill-lo: #061825;
+  --edge-sync: #6f9db5;
+  --edge-async: #a99bff;
+  --edge-data: #5ee0b8;
+  --edge-depends: #4d7288;
+  --kind-domain: #62d0ff;
+  --kind-capability: #9cc8ff;
+  --kind-entity: #66f0c9;
+  --kind-api: #8fb6cd;
+  --kind-event: #b9a6ff;
+  --kind-datastore: #66f0c9;
+  --kind-actor: #dff2ff;
+}
+
+[data-theme="parchment"] {
+  color-scheme: light;
+  --ambient-a: color-mix(in srgb, var(--amber) 6%, transparent);
+  --ambient-b: color-mix(in srgb, var(--teal) 4%, transparent);
+  --ambient-c: color-mix(in srgb, var(--blue) 4%, transparent);
+  --bg: #efe6d3;
+  --bg-2: #f4ecdc;
+  --panel: #faf4e6;
+  --panel-2: #f1e7d3;
+  --panel-3: #fffaf0;
+  --line: rgb(60 48 32 / 0.18);
+  --line-soft: rgb(60 48 32 / 0.1);
+  --line-strong: rgb(60 48 32 / 0.34);
+  --text: #2c2519;
+  --text-dim: #6b5f4c;
+  --text-faint: #7f6f57;
+  --amber: #b5431f;
+  --amber-deep: #8f2f14;
+  --amber-glow: rgb(181 67 31 / 0.22);
+  --teal: #3f7d5c;
+  --teal-glow: rgb(63 125 92 / 0.2);
+  --red: #9c1f28;
+  --red-glow: rgb(156 31 40 / 0.22);
+  --blue: #41688f;
+  --violet: #7b5a9e;
+  --accent-ink: #fff7e6;
+  --ink-rgb: 60 48 32;
+  --bg-rgb: 239 230 211;
+  --surface-rgb: 250 244 230;
+  --surface-hi-rgb: 255 250 240;
+  --surface-lo-rgb: 243 234 217;
+  --backdrop-rgb: 56 44 28;
+  --shadow-rgb: 60 45 25;
+  --shadow: 0 24px 60px rgb(60 45 25 / 0.18);
+  --grid-alpha-1: 0.07;
+  --grid-alpha-2: 0.035;
+  --grain-opacity: 0.055;
+  --node-fill-hi: #fffdf6;
+  --node-fill-lo: #f2e8d3;
+  --edge-sync: #7a6a52;
+  --edge-async: #7b5a9e;
+  --edge-data: #3f7d5c;
+  --edge-depends: #b3a58d;
+  --kind-domain: #b5431f;
+  --kind-capability: #41688f;
+  --kind-entity: #3f7d5c;
+  --kind-api: #8a7c66;
+  --kind-event: #7b5a9e;
+  --kind-datastore: #3f7d5c;
+  --kind-actor: #2c2519;
+}
+
+[data-theme="neon"] {
+  color-scheme: dark;
+  --ambient-a: color-mix(in srgb, var(--amber) 10%, transparent);
+  --ambient-b: color-mix(in srgb, var(--teal) 7%, transparent);
+  --ambient-c: color-mix(in srgb, var(--blue) 8%, transparent);
+  --bg: #08040f;
+  --bg-2: #0c0616;
+  --panel: #120a1d;
+  --panel-2: #1a0f2b;
+  --panel-3: #0d0717;
+  --line: rgb(205 175 225 / 0.15);
+  --line-soft: rgb(205 175 225 / 0.075);
+  --line-strong: rgb(215 185 235 / 0.32);
+  --text: #f4ecff;
+  --text-dim: #b49ac8;
+  --text-faint: #7a6390;
+  --amber: #ff5cc8;
+  --amber-deep: #d62fa0;
+  --amber-glow: rgb(255 92 200 / 0.26);
+  --teal: #6ff7ff;
+  --teal-glow: rgb(111 247 255 / 0.22);
+  --red: #ff5470;
+  --red-glow: rgb(255 84 112 / 0.22);
+  --blue: #8f9bff;
+  --violet: #c79bff;
+  --accent-ink: #18041a;
+  --ink-rgb: 205 175 225;
+  --bg-rgb: 8 4 15;
+  --surface-rgb: 18 10 29;
+  --surface-hi-rgb: 28 15 43;
+  --surface-lo-rgb: 12 6 20;
+  --backdrop-rgb: 5 2 10;
+  --shadow-rgb: 5 0 12;
+  --shadow: 0 24px 60px rgb(5 0 12 / 0.55);
+  --grid-alpha-1: 0.06;
+  --grid-alpha-2: 0.03;
+  --grain-opacity: 0.03;
+  --node-fill-hi: #1b1030;
+  --node-fill-lo: #0d0717;
+  --edge-sync: #b99ad0;
+  --edge-async: #c79bff;
+  --edge-data: #6ff7ff;
+  --edge-depends: #6b547e;
+  --kind-domain: #ff5cc8;
+  --kind-capability: #8f9bff;
+  --kind-entity: #6ff7ff;
+  --kind-api: #b49ac8;
+  --kind-event: #c79bff;
+  --kind-datastore: #6ff7ff;
+  --kind-actor: #f4ecff;
+}
+
+[data-theme="forest"] {
+  color-scheme: dark;
+  --ambient-a: color-mix(in srgb, var(--amber) 8%, transparent);
+  --ambient-b: color-mix(in srgb, var(--teal) 6%, transparent);
+  --ambient-c: color-mix(in srgb, var(--blue) 5%, transparent);
+  --bg: #06100c;
+  --bg-2: #081510;
+  --panel: #0a1712;
+  --panel-2: #0e211a;
+  --panel-3: #07110d;
+  --line: rgb(150 180 160 / 0.15);
+  --line-soft: rgb(150 180 160 / 0.075);
+  --line-strong: rgb(170 200 180 / 0.3);
+  --text: #e6efe2;
+  --text-dim: #9bb3a4;
+  --text-faint: #5d7568;
+  --amber: #d8b36a;
+  --amber-deep: #b28a3f;
+  --amber-glow: rgb(216 179 106 / 0.22);
+  --teal: #7fd6a8;
+  --teal-glow: rgb(127 214 168 / 0.2);
+  --red: #e5735f;
+  --red-glow: rgb(229 115 95 / 0.2);
+  --blue: #8fb8c9;
+  --violet: #b6a6d9;
+  --accent-ink: #171208;
+  --ink-rgb: 150 180 160;
+  --bg-rgb: 6 16 12;
+  --surface-rgb: 10 23 18;
+  --surface-hi-rgb: 14 33 26;
+  --surface-lo-rgb: 7 17 13;
+  --backdrop-rgb: 3 9 6;
+  --shadow-rgb: 0 8 4;
+  --shadow: 0 24px 60px rgb(0 8 4 / 0.5);
+  --grid-alpha-1: 0.06;
+  --grid-alpha-2: 0.03;
+  --grain-opacity: 0.04;
+  --node-fill-hi: #0e211a;
+  --node-fill-lo: #07100c;
+  --edge-sync: #89a595;
+  --edge-async: #b6a6d9;
+  --edge-data: #7fd6a8;
+  --edge-depends: #4e6557;
+  --kind-domain: #d8b36a;
+  --kind-capability: #8fb8c9;
+  --kind-entity: #7fd6a8;
+  --kind-api: #9bb3a4;
+  --kind-event: #b6a6d9;
+  --kind-datastore: #7fd6a8;
+  --kind-actor: #e6efe2;
+}
+
+[data-theme="daylight"] {
+  color-scheme: light;
+  --ambient-a: color-mix(in srgb, var(--amber) 5%, transparent);
+  --ambient-b: color-mix(in srgb, var(--teal) 4%, transparent);
+  --ambient-c: color-mix(in srgb, var(--blue) 4%, transparent);
+  --bg: #eef1f2;
+  --bg-2: #f4f6f7;
+  --panel: #fbfcfc;
+  --panel-2: #e7ecee;
+  --panel-3: #ffffff;
+  --line: rgb(55 72 82 / 0.16);
+  --line-soft: rgb(55 72 82 / 0.08);
+  --line-strong: rgb(55 72 82 / 0.3);
+  --text: #1c2429;
+  --text-dim: #5a6870;
+  --text-faint: #6f7d85;
+  --amber: #d95f26;
+  --amber-deep: #b94d1b;
+  --amber-glow: rgb(217 95 38 / 0.22);
+  --teal: #1f8f7a;
+  --teal-glow: rgb(31 143 122 / 0.2);
+  --red: #c43d33;
+  --red-glow: rgb(196 61 51 / 0.2);
+  --blue: #2f6fb3;
+  --violet: #6d5bb5;
+  --accent-ink: #fffaf5;
+  --ink-rgb: 55 72 82;
+  --bg-rgb: 238 241 242;
+  --surface-rgb: 251 252 252;
+  --surface-hi-rgb: 255 255 255;
+  --surface-lo-rgb: 231 236 238;
+  --backdrop-rgb: 40 52 58;
+  --shadow-rgb: 40 52 58;
+  --shadow: 0 24px 60px rgb(40 52 58 / 0.16);
+  --grid-alpha-1: 0.07;
+  --grid-alpha-2: 0.035;
+  --grain-opacity: 0.04;
+  --node-fill-hi: #ffffff;
+  --node-fill-lo: #e9eef0;
+  --edge-sync: #6d7d86;
+  --edge-async: #6d5bb5;
+  --edge-data: #1f8f7a;
+  --edge-depends: #b6c1c7;
+  --kind-domain: #d95f26;
+  --kind-capability: #2f6fb3;
+  --kind-entity: #1f8f7a;
+  --kind-api: #7b8790;
+  --kind-event: #6d5bb5;
+  --kind-datastore: #1f8f7a;
+  --kind-actor: #1c2429;
+}
+
+/* Smooth cross-fade only while switching skins. */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition:
+    background-color 0.32s ease,
+    background 0.32s ease,
+    border-color 0.32s ease,
+    color 0.22s ease,
+    fill 0.32s ease,
+    stroke 0.32s ease,
+    box-shadow 0.32s ease !important;
+}

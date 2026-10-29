@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ArcVista 观界 · 架构观测台</title>
+    <meta name="description" content="本地优先的系统架构、安全守护、业务知识图谱与质量观测台" />
+    <meta name="theme-color" content="#06090d" />
+    <script src="js/theme-boot.js"></script>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="css/dashboard.css" />
+    <link rel="stylesheet" href="css/diagram.css" />
+    <link rel="stylesheet" href="css/themes.css" />
+  </head>
+  <body>
+    <div class="grain" aria-hidden="true"></div>
+    <div id="app">
+      <div class="boot-screen">
+        <svg class="boot-mark" viewBox="0 0 64 64" aria-hidden="true">
+          <circle cx="32" cy="32" r="26" fill="none" stroke="currentColor" stroke-width="1" opacity=".25" />
+          <circle cx="32" cy="32" r="16" fill="none" stroke="currentColor" stroke-width="1" opacity=".45" />
+          <circle cx="32" cy="32" r="4" fill="currentColor" />
+          <path d="M32 2v12M32 50v12M2 32h12M50 32h12" stroke="currentColor" stroke-width="1" opacity=".5" />
+        </svg>
+        <div class="boot-text">ARCVISTA <span>正在校准观测台…</span></div>
+      </div>
+    </div>
+    <div id="modal-root"></div>
+    <div id="toast-root" aria-live="polite"></div>
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,293 @@
+/* =========================================================================
+   ArcVista — SVG architecture map, knowledge graph and chart primitives
+   ========================================================================= */
+
+.arch-svg, .kg-svg, .mini-svg {
+  font-family: var(--font-body);
+  user-select: none;
+}
+.arch-svg text, .kg-svg text, .mini-svg text { pointer-events: none; }
+
+/* ------------------------------------------------------------- layer bands */
+
+.layer-band rect {
+  fill: rgb(var(--ink-rgb) / 0.012);
+  stroke: rgb(var(--ink-rgb) / 0.09);
+  stroke-dasharray: 2 6;
+}
+.layer-band .layer-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.22em;
+  fill: var(--text-faint);
+  text-transform: uppercase;
+}
+.layer-band .layer-index {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  fill: color-mix(in srgb, var(--amber) 55%, transparent);
+}
+.group-box rect {
+  fill: rgb(var(--surface-rgb) / 0.5);
+  stroke: rgb(var(--ink-rgb) / 0.15);
+  stroke-dasharray: 3 5;
+}
+.group-box .group-label {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  fill: var(--text-faint);
+}
+.group-box .group-tick { stroke: color-mix(in srgb, var(--amber) 40%, transparent); }
+
+/* ------------------------------------------------------------------- nodes */
+
+.node-group { cursor: pointer; transition: opacity 0.2s ease; }
+.node-card {
+  fill: url(#nodeFill);
+  stroke: rgb(var(--ink-rgb) / 0.22);
+  transition: stroke 0.18s ease, filter 0.2s ease;
+}
+.node-group:hover .node-card { stroke: color-mix(in srgb, var(--amber) 75%, transparent); filter: url(#nodeGlow); }
+.node-group.active .node-card { stroke: var(--amber); filter: url(#nodeGlowStrong); }
+.node-group.dim { opacity: 0.16; }
+.node-group .node-accent { fill: var(--text-faint); }
+.node-group[data-kind="frontend"] .node-accent { fill: var(--node-accent-frontend); }
+.node-group[data-kind="gateway"] .node-accent { fill: var(--node-accent-gateway); }
+.node-group[data-kind="service"] .node-accent { fill: var(--node-accent-service); }
+.node-group[data-kind="shared"] .node-accent { fill: var(--node-accent-shared); }
+.node-group[data-kind="database"] .node-accent,
+.node-group[data-kind="cache"] .node-accent,
+.node-group[data-kind="mq"] .node-accent,
+.node-group[data-kind="search"] .node-accent { fill: var(--node-accent-data); }
+.node-group[data-kind="infra"] .node-accent { fill: var(--node-accent-infra); }
+.node-group[data-kind="external"] .node-accent { fill: var(--node-accent-external); }
+
+.node-label {
+  font-size: 13.5px;
+  font-weight: 500;
+  fill: var(--text);
+  letter-spacing: 0.01em;
+}
+.node-sub {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  fill: var(--text-faint);
+  letter-spacing: 0.02em;
+}
+.node-tag {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  fill: var(--text-dim);
+  letter-spacing: 0.06em;
+}
+.node-glyph { fill: none; stroke: currentColor; stroke-width: 1; opacity: 0.7; }
+.node-drill { fill: var(--text-faint); font-family: var(--font-mono); font-size: 9px; opacity: 0.6; }
+.node-group:hover .node-drill { fill: var(--amber); opacity: 1; }
+
+.health-dot { stroke: rgb(var(--shadow-rgb) / 0.4); stroke-width: 0.5; }
+.health-dot.good { fill: var(--teal); filter: drop-shadow(0 0 3px color-mix(in srgb, var(--teal) 60%, transparent)); }
+.health-dot.warn { fill: var(--amber); }
+.health-dot.bad { fill: var(--red); filter: drop-shadow(0 0 3px color-mix(in srgb, var(--red) 50%, transparent)); }
+.health-dot.na { fill: rgb(var(--ink-rgb) / 0.25); }
+
+/* ------------------------------------------------------------------- edges */
+
+.edge path {
+  fill: none;
+  stroke: rgb(var(--ink-rgb) / 0.34);
+  stroke-width: 1.1;
+  transition: stroke 0.18s ease, opacity 0.18s ease, stroke-width 0.18s ease;
+}
+.edge[data-kind="sync"] path { stroke: var(--edge-sync); }
+.edge[data-kind="async"] path { stroke-dasharray: 4 4; stroke: var(--edge-async); }
+.edge[data-kind="data"] path { stroke: var(--edge-data); }
+.edge[data-kind="depends"] path { stroke: var(--edge-depends); stroke-width: 0.9; }
+
+/* Edge arrowheads pull their colour from the same skin tokens. */
+.arrow-sync path { fill: var(--edge-sync); }
+.arrow-async path { fill: var(--edge-async); }
+.arrow-data path { fill: var(--edge-data); }
+.arrow-depends path { fill: var(--edge-depends); }
+.mini-arrow { fill: var(--text-faint); }
+
+/* Node surface gradient stops. */
+.node-fill-hi { stop-color: var(--node-fill-hi); }
+.node-fill-lo { stop-color: var(--node-fill-lo); }
+.edge.dim { opacity: 0.1; }
+.edge.highlight path { stroke: var(--amber); stroke-width: 1.6; opacity: 1; }
+.edge.highlight[data-kind="data"] path { stroke: var(--teal); }
+.edge.highlight[data-kind="async"] path { stroke: var(--violet); }
+.edge-label-bg { fill: rgb(var(--surface-lo-rgb) / 0.92); stroke: rgb(var(--ink-rgb) / 0.18); }
+.edge-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  fill: var(--text-dim);
+  letter-spacing: 0.04em;
+}
+.edge.highlight .edge-label { fill: var(--amber); }
+.edge.fade-in { animation: edge-in 0.6s ease; }
+@keyframes edge-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ------------------------------------------------------------ knowledge map */
+
+.kg-lane-bg {
+  fill: rgb(var(--surface-rgb) / 0.28);
+  stroke: rgb(var(--ink-rgb) / 0.075);
+  stroke-dasharray: 4 5;
+}
+.kg-lane .lane-sub {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  fill: var(--text-faint);
+  letter-spacing: 0.1em;
+}
+.kg-lane .lane-index {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  fill: color-mix(in srgb, var(--amber) 58%, transparent);
+  letter-spacing: 0.16em;
+}
+.kg-node { cursor: pointer; transition: opacity 0.18s ease; }
+.kg-node.is-static { cursor: default; }
+.kg-card { transition: filter 0.18s ease, stroke 0.18s ease, fill 0.18s ease; }
+.kg-node:hover .kg-card { filter: url(#nodeGlow); }
+.kg-node.dim { opacity: 0.16; }
+.kg-node.active .kg-card { stroke: var(--amber); stroke-width: 1.6; filter: url(#nodeGlowStrong); }
+.kg-node .kg-label {
+  font-size: 10.5px;
+  fill: var(--text);
+  letter-spacing: 0.01em;
+}
+.kg-node.kind-domain .kg-label { font-size: 12.5px; font-weight: 600; }
+.kg-node.kind-capability .kg-label { font-size: 10.5px; fill: var(--text-dim); }
+.kg-node.kind-entity .kg-label { font-size: 9.5px; fill: var(--text-dim); }
+.kg-node.kind-event .kg-label { font-size: 9.5px; fill: var(--text-dim); }
+.kg-node.kind-actor .kg-label,
+.kg-node.kind-datastore .kg-label { font-size: 11px; }
+.kg-node .kg-sub {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  fill: var(--text-faint);
+  letter-spacing: 0.04em;
+}
+.kg-node .kg-count {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  fill: var(--text-faint);
+  opacity: 0.75;
+}
+.kg-node .kg-dot { fill: var(--kind-capability); }
+
+.kg-node.kind-domain .kg-card {
+  fill: color-mix(in srgb, var(--kind-domain) 12%, transparent);
+  stroke: color-mix(in srgb, var(--kind-domain) 52%, transparent);
+}
+.kg-node.kind-domain .kg-dot { fill: var(--kind-domain); }
+.kg-node.kind-capability .kg-card {
+  fill: color-mix(in srgb, var(--kind-capability) 7%, transparent);
+  stroke: color-mix(in srgb, var(--kind-capability) 38%, transparent);
+}
+.kg-node.kind-capability .kg-dot { fill: var(--kind-capability); }
+.kg-node.kind-entity .kg-card {
+  fill: color-mix(in srgb, var(--kind-entity) 7%, transparent);
+  stroke: color-mix(in srgb, var(--kind-entity) 32%, transparent);
+}
+.kg-node.kind-entity .kg-dot { fill: var(--kind-entity); }
+.kg-node.kind-api .kg-card {
+  fill: rgb(var(--ink-rgb) / 0.04);
+  stroke: rgb(var(--ink-rgb) / 0.2);
+}
+.kg-node.kind-event .kg-card {
+  fill: color-mix(in srgb, var(--kind-event) 8%, transparent);
+  stroke: color-mix(in srgb, var(--kind-event) 38%, transparent);
+}
+.kg-node.kind-event .kg-dot { fill: var(--kind-event); }
+.kg-node.kind-datastore .kg-card {
+  fill: color-mix(in srgb, var(--kind-datastore) 10%, transparent);
+  stroke: color-mix(in srgb, var(--kind-datastore) 48%, transparent);
+}
+.kg-node.kind-datastore .kg-dot { fill: var(--kind-datastore); }
+.kg-node.kind-actor .kg-card {
+  fill: rgb(var(--ink-rgb) / 0.045);
+  stroke: rgb(var(--ink-rgb) / 0.28);
+}
+.kg-node.kind-actor .kg-dot { fill: var(--text-dim); }
+
+.kg-edge-group { transition: opacity 0.18s ease; }
+.kg-edge-group.dim { opacity: 0.08; }
+.kg-edge-group.highlight .kg-edge { stroke: var(--amber); stroke-width: 1.5; opacity: 1; }
+.kg-edge-group.highlight .kg-edge-hit { stroke-width: 14; }
+.kg-edge-hit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; }
+.kg-edge {
+  fill: none;
+  stroke: rgb(var(--ink-rgb) / 0.28);
+  stroke-width: 1.1;
+  opacity: 0.7;
+  transition: opacity 0.18s ease, stroke 0.18s ease;
+}
+.kg-edge[data-kind="depends"] { stroke: color-mix(in srgb, var(--blue) 48%, transparent); }
+.kg-edge[data-kind="uses"] { stroke: color-mix(in srgb, var(--teal) 46%, transparent); }
+.kg-edge[data-kind="references"] { stroke: color-mix(in srgb, var(--amber) 38%, transparent); }
+.kg-edge[data-kind="emits"],
+.kg-edge[data-kind="consumes"] { stroke: color-mix(in srgb, var(--violet) 46%, transparent); stroke-dasharray: 4 4; }
+.kg-caption {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  fill: var(--text-faint);
+  letter-spacing: 0.12em;
+}
+
+/* -------------------------------------------------------------- chart bits */
+
+.gauge { display: block; overflow: visible; }
+.gauge .track { stroke: rgb(var(--ink-rgb) / 0.1); fill: none; }
+.gauge .tick { stroke: rgb(var(--ink-rgb) / 0.16); }
+.gauge .tick-major { stroke: rgb(var(--ink-rgb) / 0.3); }
+.gauge .value-arc { fill: none; stroke-linecap: round; transition: stroke-dashoffset 0.9s cubic-bezier(0.2, 0.9, 0.3, 1); }
+.gauge .gauge-number {
+  font-family: var(--font-mono);
+  font-size: 34px;
+  letter-spacing: -0.04em;
+  fill: var(--text);
+}
+.gauge .gauge-unit { font-family: var(--font-mono); font-size: 10px; fill: var(--text-faint); }
+.gauge .gauge-scale { font-family: var(--font-mono); font-size: 8px; fill: var(--text-faint); letter-spacing: 0.1em; }
+.gauge .gauge-label { font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 0.2em; fill: var(--text-faint); text-transform: uppercase; }
+
+.mini-ring .track { stroke: rgb(var(--ink-rgb) / 0.12); fill: none; }
+.mini-ring .value { fill: none; stroke-linecap: round; }
+.mini-ring .num { font-family: var(--font-mono); font-size: 12px; fill: var(--text); }
+.mini-ring .unit { font-family: var(--font-mono); font-size: 7px; fill: var(--text-faint); }
+
+.radar .grid { fill: none; stroke: rgb(var(--ink-rgb) / 0.14); }
+.radar .axis { stroke: rgb(var(--ink-rgb) / 0.1); }
+.radar .area { fill: color-mix(in srgb, var(--amber) 13%, transparent); stroke: var(--amber); stroke-width: 1.4; }
+.radar .point { fill: var(--amber); }
+.radar .label { font-family: var(--font-mono); font-size: 8.5px; fill: var(--text-faint); letter-spacing: 0.04em; }
+.radar .val { font-family: var(--font-mono); font-size: 8px; fill: var(--text-dim); }
+
+.delta-bar { display: flex; align-items: center; gap: 10px; }
+.delta-bar .db-track { flex: 1; height: 4px; background: rgb(var(--ink-rgb) / 0.1); position: relative; }
+.delta-bar .db-track i { position: absolute; top: 0; bottom: 0; }
+.delta-bar .db-track i.pos { background: var(--teal); }
+.delta-bar .db-track i.neg { background: var(--red); }
+
+.c-good { color: var(--teal); }
+.c-warn { color: var(--amber); }
+.c-bad { color: var(--red); }
+.c-info { color: var(--blue); }
+
+/* ------------------------------------------------------------- mini diagram */
+
+.mini-svg .mini-node rect { fill: rgb(var(--surface-hi-rgb) / 0.9); stroke: rgb(var(--ink-rgb) / 0.28); }
+.mini-svg .mini-node:hover rect { stroke: var(--amber); }
+.mini-svg .mini-node .mini-label { font-size: 9.5px; fill: var(--text); }
+.mini-svg .mini-node .mini-sub { font-family: var(--font-mono); font-size: 7.5px; fill: var(--text-faint); }
+.mini-svg .mini-edge { stroke: rgb(var(--ink-rgb) / 0.3); stroke-width: 1; fill: none; }
+.mini-svg .mini-node.kind-domain rect { stroke: color-mix(in srgb, var(--amber) 50%, transparent); }

@@ -1,0 +1,31 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "ArcVista 启动",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/server.js",
+      "cwd": "${workspaceFolder}",
+      "runtimeArgs": ["--disable-warning=ExperimentalWarning"],
+      "env": {
+        "PORT": "4321"
+      },
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "ArcVista 开发模式（--watch）",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/server.js",
+      "cwd": "${workspaceFolder}",
+      "runtimeArgs": ["--disable-warning=ExperimentalWarning", "--watch"],
+      "env": {
+        "PORT": "4321"
+      },
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}
