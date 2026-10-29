@@ -63,7 +63,7 @@ export function apply(ctx, config = {}) {
   const dataDir = path.resolve(
     config.dataDir ||
       process.env.ARCVISTA_DATA ||
-      path.join(process.env.DSH_PROFILE_DIR || path.join(os.homedir(), '.dsh'), 'arcvista'),
+      path.join(os.homedir(), '.dsh', 'arcvista'),
   );
   const backupDir = path.resolve(config.backupDir || process.env.ARCVISTA_BACKUP_DIR || path.join(dataDir, 'backups'));
   const app = createArcVistaApp({
