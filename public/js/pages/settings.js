@@ -21,7 +21,7 @@ export async function renderSettings(main, ctx) {
         <div>
           <div class="eyebrow">CONFIGURATION · 观测参数</div>
           <h1 class="page-title">${dshManaged ? '观测<em>配置</em>' : '模型与<em>观测配置</em>'}</h1>
-          <p class="page-sub">${dshManaged ? 'ArcVista 现在运行在 DSH 插件中，模型由 DSH 统一提供，不需要单独配置 API Key。分析结论与快照仍保存在本机。' : 'ArcVista 是本地工具，分析结论与快照全部保存在你自己的机器上。配置一个 OpenAI 兼容的大模型后，架构语义、业务知识图谱、风险判断与模块下钻会由模型增强；不配置也能使用完整的启发式分析。'}</p>
+          <p class="page-sub">${dshManaged ? 'ArcVista 现在运行在 DSH 插件中，模型由 DSH 统一提供，无需单独设置。分析结论与快照仍保存在本机。' : 'ArcVista 是本地工具，分析结论与快照全部保存在你自己的机器上。配置一个 OpenAI 兼容的大模型后，架构语义、业务知识图谱、风险判断与模块下钻会由模型增强；不配置也能使用完整的启发式分析。'}</p>
         </div>
         <div class="masthead-right">
           <div class="masthead-meta">${dshManaged ? 'DSH MODEL' : llm.enabled ? 'MODEL ONLINE' : 'HEURISTIC MODE'}<br/><b>${dshManaged ? esc(llm.model || 'DSH') : llm.enabled ? esc(llm.model || '') : '需要在下方配置 Key'}</b></div>
@@ -48,7 +48,7 @@ export async function renderSettings(main, ctx) {
         </div>
       </div>
 
-      ${dshManaged ? `<div class="banner banner--teal mb-24"><span>${icon('shield', 16)}</span><div><strong>模型由 DSH 统一提供</strong> 当前使用 <span class="mono">${esc(llm.model || 'DSH')}</span>，无需配置 API Key；密钥由 DSH 管理。</div></div>` : ''}
+      ${dshManaged ? `<div class="banner banner--teal mb-24"><span>${icon('shield', 16)}</span><div><strong>模型由 DSH 统一提供</strong> 当前使用 <span class="mono">${esc(llm.model || 'DSH')}</span>；无需在 ArcVista 内配置。</div></div>` : ''}
       <div class="settings-grid">
         <div class="panel" ${dshManaged ? 'style="display:none"' : ''}>
           <div class="panel-head">
@@ -113,10 +113,12 @@ export async function renderSettings(main, ctx) {
             <div class="panel-head"><div><div class="panel-title">当前状态</div></div></div>
             <div class="panel-body">
               <dl class="kv-list">
-                <div class="kv"><dt>模型增强</dt><dd>${dshManaged ? '<span class="teal">由 DSH 提供</span>' : llm.enabled ? '<span class="teal">已启用</span>' : '<span class="amber">启发式模式</span>'}</dd></div>
-                <div class="kv"><dt>Base URL</dt><dd class="mono" style="font-size:10px;word-break:break-all">${dshManaged ? 'DSH 内置' : esc(llm.baseUrl || '—')}</dd></div>
+                ${dshManaged
+                  ? '<div class="kv"><dt>模型（DSH 提供）</dt><dd class="mono">' + esc(llm.model || 'DSH') + '</dd></div>'
+                  : `<div class="kv"><dt>模型增强</dt><dd>${llm.enabled ? '<span class="teal">已启用</span>' : '<span class="amber">启发式模式</span>'}</dd></div>
+                <div class="kv"><dt>Base URL</dt><dd class="mono" style="font-size:10px;word-break:break-all">${esc(llm.baseUrl || '—')}</dd></div>
                 <div class="kv"><dt>模型</dt><dd class="mono">${esc(llm.model || '—')}</dd></div>
-                ${dshManaged ? '' : `<div class="kv"><dt>Key</dt><dd class="mono">${llm.hasKey ? esc(llm.apiKeyMasked || '已保存') : llm.envKey ? '来自环境变量' : '未配置'}</dd></div>`}
+                <div class="kv"><dt>Key</dt><dd class="mono">${llm.hasKey ? esc(llm.apiKeyMasked || '已保存') : llm.envKey ? '来自环境变量' : '未配置'}</dd></div>`}
                 <div class="kv"><dt>数据目录</dt><dd class="mono" style="font-size:10px;word-break:break-all">${esc(health?.dataDir || '—')}</dd></div>
                 <div class="kv"><dt>备份目录</dt><dd class="mono" style="font-size:10px;word-break:break-all">${esc(health?.backups?.dir || '—')}</dd></div>
                 <div class="kv"><dt>最近备份</dt><dd>${health?.backups?.latest ? `${esc(timeAgo(health.backups.latest.at))} · ${esc(fmtBytes(health.backups.latest.size))}` : '暂无'}</dd></div>
@@ -128,7 +130,7 @@ export async function renderSettings(main, ctx) {
               </div>
             </div>
           </div>
-          <div class="panel">
+          <div class="panel" ${dshManaged ? 'style="display:none"' : ''}>
             <div class="panel-head"><div><div class="panel-title">模型增强了什么</div></div></div>
             <div class="panel-body">
               <ul class="bullet-list">
@@ -141,7 +143,7 @@ export async function renderSettings(main, ctx) {
               <div class="help">没有 Key 时，架构、依赖、安全守护、复杂度、覆盖率、知识图谱仍由静态分析引擎生成，风险规则照常运行。快照会记录当次使用的引擎，可随时重新分析。</div>
             </div>
           </div>
-          <div class="panel">
+          <div class="panel" ${dshManaged ? 'style="display:none"' : ''}>
             <div class="panel-head"><div><div class="panel-title">环境变量方式</div></div></div>
             <div class="panel-body">
               <div class="help" style="line-height:2">
