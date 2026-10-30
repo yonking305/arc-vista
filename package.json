@@ -56,7 +56,9 @@
     "test": "node --disable-warning=ExperimentalWarning --test tests/*.test.js",
     "prepack": "node --disable-warning=ExperimentalWarning scripts/check-package.mjs",
     "package:intranet": "node --disable-warning=ExperimentalWarning scripts/build-intranet-package.mjs",
-    "package:security-review": "node --disable-warning=ExperimentalWarning scripts/build-intranet-package.mjs && node --disable-warning=ExperimentalWarning scripts/build-security-review.mjs"
+    "package:security-review": "node --disable-warning=ExperimentalWarning scripts/build-intranet-package.mjs && node --disable-warning=ExperimentalWarning scripts/build-security-review.mjs",
+    "release": "node scripts/release.mjs",
+    "release:dry": "node scripts/release.mjs --dry-run"
   },
   "dsh": {
     "bundle": {

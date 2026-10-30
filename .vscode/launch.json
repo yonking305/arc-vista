@@ -7,12 +7,16 @@
       "request": "launch",
       "program": "${workspaceFolder}/server.js",
       "cwd": "${workspaceFolder}",
-      "runtimeArgs": ["--disable-warning=ExperimentalWarning"],
+      "runtimeArgs": [
+        "--disable-warning=ExperimentalWarning"
+      ],
       "env": {
         "PORT": "4321"
       },
       "console": "integratedTerminal",
-      "skipFiles": ["<node_internals>/**"]
+      "skipFiles": [
+        "<node_internals>/**"
+      ]
     },
     {
       "name": "ArcVista 开发模式（--watch）",
@@ -20,12 +24,31 @@
       "request": "launch",
       "program": "${workspaceFolder}/server.js",
       "cwd": "${workspaceFolder}",
-      "runtimeArgs": ["--disable-warning=ExperimentalWarning", "--watch"],
+      "runtimeArgs": [
+        "--disable-warning=ExperimentalWarning",
+        "--watch"
+      ],
       "env": {
         "PORT": "4321"
       },
       "console": "integratedTerminal",
-      "skipFiles": ["<node_internals>/**"]
+      "skipFiles": [
+        "<node_internals>/**"
+      ]
+    },
+    {
+      "name": "发布到 npm（自动升版）",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/release.mjs",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "runtimeArgs": [
+        "--disable-warning=ExperimentalWarning"
+      ],
+      "skipFiles": [
+        "<node_internals>/**"
+      ]
     }
   ]
 }
