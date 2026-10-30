@@ -11,6 +11,12 @@ import { analyzeModule } from './lib/analyze/drilldown.js';
 import { diffSnapshots } from './lib/diff.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
+let VERSION = '0.0.0';
+try {
+  VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version || VERSION;
+} catch {
+  /* package metadata is optional at runtime */
+}
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const DATA_DIR = process.env.ARCVISTA_DATA ? path.resolve(process.env.ARCVISTA_DATA) : path.join(ROOT, 'data');
 const PORT = Number(
@@ -254,9 +260,9 @@ function snapshotOption(snapshot) {
 router.get('/api/health', () => ({
   ok: true,
   name: 'ArcVista',
-  version: '0.1.0',
+  version: VERSION,
   node: process.version,
-  dataDir: DATA_DIR,
+  dataDir: path.dirname(store.file),
   backups: store.backups.info(),
   llm: publicLlmSettings(),
   uptime: Math.round(process.uptime()),

@@ -1,6 +1,6 @@
 {
   "name": "dsh-arcvista",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": false,
   "type": "module",
   "description": "ArcVista 观界 —— DSH 内的架构观测台：架构图、安全守护、业务知识图谱、复杂度与分支风险对比",
@@ -54,7 +54,9 @@
     "start": "node --disable-warning=ExperimentalWarning server.js",
     "dev": "node --disable-warning=ExperimentalWarning --watch server.js",
     "test": "node --disable-warning=ExperimentalWarning --test tests/*.test.js",
-    "prepack": "node --disable-warning=ExperimentalWarning scripts/check-package.mjs"
+    "prepack": "node --disable-warning=ExperimentalWarning scripts/check-package.mjs",
+    "package:intranet": "node --disable-warning=ExperimentalWarning scripts/build-intranet-package.mjs",
+    "package:security-review": "node --disable-warning=ExperimentalWarning scripts/build-intranet-package.mjs && node --disable-warning=ExperimentalWarning scripts/build-security-review.mjs"
   },
   "dsh": {
     "bundle": {
