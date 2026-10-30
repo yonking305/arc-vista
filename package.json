@@ -1,6 +1,6 @@
 {
   "name": "dsh-arcvista",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": false,
   "type": "module",
   "description": "ArcVista 观界 —— DSH 内的架构观测台：架构图、安全守护、业务知识图谱、复杂度与分支风险对比",

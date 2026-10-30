@@ -33,6 +33,15 @@ const HOST = process.env.HOST || '127.0.0.1';
  */
 export function createArcVistaApp({ dataDir = DATA_DIR, publicDir = PUBLIC_DIR, backupDir = null, llm = null } = {}) {
   const store = openDatabase(dataDir, backupDir ? { backupDir } : {});
+  // DSH manages the model. Remove legacy standalone model settings (including
+  // any old API key) so upgrading to the plugin cannot retain a stale secret.
+  if (llm?.provider === 'dsh') {
+    try {
+      store.db.prepare("DELETE FROM settings WHERE key LIKE 'llm_%'").run();
+    } catch {
+      /* best-effort cleanup for old databases */
+    }
+  }
   const git = new GitStore(dataDir);
   const jobs = new JobRunner(store);
   const interruptedJobs = store.jobs.interruptActive();
