@@ -16,7 +16,7 @@
 ## 前置条件
 
 - **已安装 DeepSeek Harness**，并且至少启动过一次（存在 `~/.dsh/profiles/web`）。Windows 便携版默认使用 `%USERPROFILE%\.dsh`。
-- **Node.js 22.19+**（DSH 自带；`node -v` 确认）。插件使用 Node 内置 `node:sqlite`。
+- **Node.js 22.19+**（DSH 自带；`node -v` 确认）。插件使用 Node 内置 `node:http` 与本地 JSON 存储。
 - 目标机器有 **git**（分析仓库时使用），被观测的 Git 仓库在内网可达。
 - 磁盘空间：安装约 1 MB；分析仓库时按仓库大小额外占用（默认在 `~/.dsh/arcvista`）。
 
@@ -121,7 +121,7 @@ node install.mjs --uninstall
 
 ## 数据、网络与权限
 
-- **数据目录**：`~/.dsh/arcvista`（SQLite 数据库、仓库镜像、worktree、自动备份），与 DSH 其他数据分开；卸载不会删除。
+- **数据目录**：`~/.dsh/arcvista`（项目列表、任务、设置与全局备份），与 DSH 其他数据分开；卸载不会删除。分析快照在项目自己的 `.arcvista/`。
 - **网络**：安装器本身不联网。插件运行后，分析时会用 `git` 克隆 / 拉取**被观测仓库**，因此仓库地址必须在内网可达（或先用本地路径方式接入）。
 - **模型**：分析语义增强使用 DSH 当前的默认模型，通过 DSH 内部 `llm` 服务调用，不需要在 ArcVista 里配置 Base URL / API Key；内网没有可用模型时，架构、依赖、安全守护、复杂度、覆盖率与知识图谱仍由静态分析引擎完整生成。
 - **权限**：只读取被观测仓库的工作区文件，不会修改你的仓库；不需要管理员权限（写入用户目录即可）。
@@ -224,7 +224,7 @@ dsh plugin --profile web add ./payload/dsh-arcvista-{{VERSION}}.tgz
 
 **数据太大 / 想清空**
 
-仓库镜像在 `~/.dsh/arcvista/repos` 与 `worktrees`，可直接删除，重新分析会重建；数据库备份在 `~/.dsh/arcvista/backups`（默认保留 12 份）。
+项目快照在项目目录的 `.arcvista/`；全局 JSON 备份在 `~/.dsh/arcvista/backups`（默认保留 12 份）。
 
 ## 说明
 

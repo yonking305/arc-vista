@@ -20,7 +20,7 @@ function rail() {
       <div class="rail-word">ArcVista · 架构观测台</div>
       <div class="rail-spacer"></div>
       <button class="rail-btn" data-theme-picker type="button" title="切换皮肤" aria-label="切换皮肤">${icon('palette', 18)}</button>
-      <a class="rail-btn" href="#/settings" title="模型设置" aria-label="模型设置">${icon('settings', 18)}</a>
+      <a class="rail-btn" href="#/settings" title="设置" aria-label="设置">${icon('settings', 18)}</a>
       <span class="rail-status" title="本地服务在线"></span>
     </aside>`;
 }
@@ -33,7 +33,7 @@ function pageError(error) {
         <div>
           <div class="eyebrow">CONNECTION LOST</div>
           <h1 class="page-title">观测台<em>离线</em></h1>
-          <p class="page-sub">${unreachable ? '无法连接本地 ArcVista 服务。请在项目目录执行 <span class="mono">npm start</span> 后刷新页面。' : '页面渲染失败，请查看服务端日志或重试。'}</p>
+          <p class="page-sub">${unreachable ? '无法连接 ArcVista 服务。请确认 DSH 插件已启用，或独立运行时在项目目录执行 <span class="mono">npm start</span>。' : '页面渲染失败，请查看服务端日志或重试。'}</p>
         </div>
       </div>
       <div class="panel"><div class="panel-body">
@@ -133,7 +133,7 @@ async function boot() {
       state.products = [];
     })
     .catch(() => {
-      toast('无法连接 ArcVista 服务', { type: 'error', detail: '请确认 npm start 正在运行' });
+      toast('无法连接 ArcVista 服务', { type: 'error', detail: '请确认 DSH 插件已启用' });
     });
   await renderRoute();
 }

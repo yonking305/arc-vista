@@ -1,12 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { openDatabase } from './lib/db.js';
-import { GitStore, classifyRepoUrl } from './lib/git.js';
+import { openStore } from './lib/store.js';
+import { inspectProject, listBranches } from './lib/local-git.js';
 import { Router, createServer, badRequest, notFound, readJsonBody } from './lib/http.js';
 import { JobRunner } from './lib/jobs.js';
 import { resolveLlmConfig, maskKey, testConnection } from './lib/llm.js';
-import { analyzeRepository, prepareRepository } from './lib/analyze/index.js';
+import { analyzeRepository } from './lib/analyze/index.js';
 import { analyzeModule } from './lib/analyze/drilldown.js';
 import { diffSnapshots } from './lib/diff.js';
 
@@ -31,18 +31,8 @@ const HOST = process.env.HOST || '127.0.0.1';
  * router) without binding an HTTP port. The standalone CLI below uses it, and
  * the DSH plugin mounts the same router on the Harness web server.
  */
-export function createArcVistaApp({ dataDir = DATA_DIR, publicDir = PUBLIC_DIR, backupDir = null, llm = null } = {}) {
-  const store = openDatabase(dataDir, backupDir ? { backupDir } : {});
-  // DSH manages the model. Remove legacy standalone model settings (including
-  // any old API key) so upgrading to the plugin cannot retain a stale secret.
-  if (llm?.provider === 'dsh') {
-    try {
-      store.db.prepare("DELETE FROM settings WHERE key LIKE 'llm_%'").run();
-    } catch {
-      /* best-effort cleanup for old databases */
-    }
-  }
-  const git = new GitStore(dataDir);
+export function createArcVistaApp({ dataDir = DATA_DIR, publicDir = PUBLIC_DIR, backupDir = null, llm = null, workspaces = () => [] } = {}) {
+  const store = openStore(dataDir, backupDir ? { backupDir } : {});
   const jobs = new JobRunner(store);
   const interruptedJobs = store.jobs.interruptActive();
   if (interruptedJobs > 0) {
@@ -108,7 +98,9 @@ function productCard(product) {
   if (latest) branchHints.push(latest.branch);
   return {
     ...product,
-    repoKind: classifyRepoUrl(product.repoUrl),
+    repoUrl: product.path,
+    path: product.path,
+    repoKind: 'local',
     latest: latest
       ? {
           id: latest.id,
@@ -150,37 +142,18 @@ function requireSnapshot(productId, snapshotId) {
   return snapshot;
 }
 
-function startAnalyzeJob(product, { branch = null, force = false } = {}) {
+function startAnalyzeJob(product, { force = false } = {}) {
   return jobs.start({
     productId: product.id,
     kind: 'analyze',
-    branch,
+    branch: null,
     run: async (ctx) => {
       const fresh = store.products.get(product.id);
       return analyzeRepository({
         store,
-        git,
         product: fresh,
-        branch,
         force,
         llm: effectiveLlmConfig(),
-        log: ctx.log,
-        progress: ctx.progress,
-      });
-    },
-  });
-}
-
-function startPrepareJob(product) {
-  return jobs.start({
-    productId: product.id,
-    kind: 'prepare',
-    run: async (ctx) => {
-      const fresh = store.products.get(product.id);
-      return prepareRepository({
-        store,
-        git,
-        product: fresh,
         log: ctx.log,
         progress: ctx.progress,
       });
@@ -270,45 +243,85 @@ router.get('/api/health', () => ({
   ok: true,
   name: 'ArcVista',
   version: VERSION,
+  storage: 'json',
   node: process.version,
-  dataDir: path.dirname(store.file),
+  dataDir: store.dataDir,
   backups: store.backups.info(),
   llm: publicLlmSettings(),
   uptime: Math.round(process.uptime()),
 }));
 
+router.get('/api/workspaces', async () => {
+  try {
+    const list = await workspaces();
+    return { workspaces: Array.isArray(list) ? list : [] };
+  } catch {
+    return { workspaces: [] };
+  }
+});
+
 router.get('/api/products', () => ({ products: store.products.list().map(productCard) }));
+
+function validateProjectPath(input) {
+  const raw = String(input || '').trim();
+  if (!raw) throw badRequest('本地项目目录不能为空');
+  if (!path.isAbsolute(raw)) throw badRequest('请填写本地目录的绝对路径');
+  let real;
+  try {
+    real = fs.realpathSync(raw);
+  } catch {
+    throw badRequest('目录不存在或无法访问，请检查路径');
+  }
+  let stat;
+  try {
+    stat = fs.statSync(real);
+  } catch {
+    throw badRequest('目录不存在或无法访问，请检查路径');
+  }
+  if (!stat.isDirectory()) throw badRequest('请选择目录，而不是文件');
+  if (path.parse(real).root === real) throw badRequest('不能直接选择文件系统根目录，请选择具体项目');
+  return real;
+}
 
 router.post('/api/products', async ({ req }) => {
   const body = await readJsonBody(req);
-  const name = String(body.name || '').trim();
-  const repoUrl = String(body.repoUrl || '').trim();
-  if (!name) throw badRequest('产品名称不能为空');
-  if (name.length > 60) throw badRequest('产品名称不能超过 60 个字符');
-  if (!repoUrl) throw badRequest('Git 仓库地址不能为空');
-  if (!/^(https?:\/\/|ssh:\/\/|git@|file:\/\/|\/|\.\.?\/|[A-Za-z]:[\\/])/.test(repoUrl)) {
-    throw badRequest('请填写有效的 Git 仓库地址（https://、git@ 或本地绝对路径）');
-  }
-  if (store.products.findByName(name)) throw badRequest('同名产品已存在，请换一个名称');
+  const projectPath = validateProjectPath(body.path || body.repoUrl);
+  const name = String(body.name || path.basename(projectPath)).trim();
+  if (!name) throw badRequest('项目名称不能为空');
+  if (name.length > 60) throw badRequest('项目名称不能超过 60 个字符');
+  if (store.products.findByName(name)) throw badRequest('同名项目已存在，请换一个名称');
+  if (store.products.findByPath(projectPath)) throw badRequest('这个本地目录已经是一个观测项目');
   const product = store.products.create({
     name,
-    repoUrl,
+    path: projectPath,
     description: String(body.description || '').slice(0, 300),
-    mirrorUrl: body.mirrorUrl ? String(body.mirrorUrl).trim() : undefined,
-    defaultBranch: String(body.branch || 'main'),
   });
-  const job = startPrepareJob(product);
-  return { product: productCard(product), job };
+  let info = null;
+  try {
+    info = await inspectProject(projectPath);
+    if (info.branch) store.products.update(product.id, { defaultBranch: info.branch });
+  } catch {
+    /* a plain directory is valid too */
+  }
+  const job = startAnalyzeJob(product);
+  return { product: productCard({ ...product, defaultBranch: info?.branch || '' }), job };
 });
 
 router.get('/api/products/:id', async ({ params }) => {
   const product = requireProduct(params.id);
-  let branches = [];
+  const projectPath = product.path;
   let repoReady = false;
-  if (git.hasUsableMirror(product.id)) {
-    repoReady = true;
+  let branches = [];
+  let defaultBranch = product.defaultBranch || '';
+  try {
+    repoReady = fs.statSync(projectPath).isDirectory();
+  } catch {
+    repoReady = false;
+  }
+  if (repoReady) {
     try {
-      branches = await git.listBranches(product.id);
+      branches = await listBranches(projectPath);
+      defaultBranch = branches[0]?.name || defaultBranch;
     } catch {
       branches = [];
     }
@@ -324,7 +337,7 @@ router.get('/api/products/:id', async ({ params }) => {
     branches,
     branchAnalysis: buildBranchAnalysis({ branches, snapshots, jobList }),
     repoReady,
-    defaultBranch: product.defaultBranch,
+    defaultBranch,
     llm: publicLlmSettings(),
   };
 });
@@ -342,8 +355,7 @@ router.put('/api/products/:id', async ({ params, req }) => {
     patch.name = name;
   }
   if (body.description !== undefined) patch.description = String(body.description).slice(0, 300);
-  if (body.repoUrl !== undefined) patch.repoUrl = String(body.repoUrl).trim();
-  if (body.mirrorUrl !== undefined) patch.mirrorUrl = String(body.mirrorUrl).trim();
+  if (body.path !== undefined) patch.path = validateProjectPath(body.path);
   if (body.defaultBranch !== undefined) patch.defaultBranch = String(body.defaultBranch).trim();
   return { product: productCard(store.products.update(product.id, patch)) };
 });
@@ -355,16 +367,15 @@ router.delete('/api/products/:id', async ({ params }) => {
   } catch {
     /* ignore backup failures on delete */
   }
-  store.drill.removeByProduct(product.id);
-  store.snapshots.removeByProduct(product.id);
+  // Keep <project>/.arcvista/ artifacts; removing a project only detaches it
+  // from the global ArcVista project list.
   store.products.remove(product.id);
-  await git.removeProduct(product.id).catch(() => {});
   return { ok: true, deleted: product.id };
 });
 
 router.post('/api/products/:id/prepare', async ({ params }) => {
   const product = requireProduct(params.id);
-  const job = startPrepareJob(product);
+  const job = startAnalyzeJob(product);
   return { job };
 });
 
@@ -372,20 +383,18 @@ router.post('/api/products/:id/analyze', async ({ params, req }) => {
   const { readJsonBody } = await import('./lib/http.js');
   const product = requireProduct(params.id);
   const body = await readJsonBody(req);
-  const branch = body.branch ? String(body.branch) : null;
   const force = Boolean(body.force);
-  if (!git.hasUsableMirror(product.id) && !product.repoUrl) throw badRequest('未配置仓库地址');
-  const job = startAnalyzeJob(product, { branch, force });
+  const job = startAnalyzeJob(product, { force });
   return { job };
 });
 
 router.get('/api/products/:id/branches', async ({ params }) => {
   const product = requireProduct(params.id);
-  if (!git.hasUsableMirror(product.id)) return { branches: [], repoReady: false };
   try {
-    return { branches: await git.listBranches(product.id), repoReady: true };
+    await fs.promises.access(product.path);
+    return { branches: await listBranches(product.path), repoReady: true };
   } catch (error) {
-    return { branches: [], repoReady: true, warning: error.message };
+    return { branches: [], repoReady: false, warning: error.message };
   }
 });
 
@@ -568,7 +577,6 @@ router.post('/api/settings/test', async () => {
 
   return {
     store,
-    git,
     jobs,
     router,
     publicDir,
@@ -591,8 +599,8 @@ if (isMain) {
     console.log('');
     console.log('  \u001b[38;5;214mArcVista\u001b[0m 架构观测台');
     console.log(`  \u001b[2m─\u001b[0m 地址   \u001b[36mhttp://${HOST}:${PORT}\u001b[0m`);
-    console.log(`  \u001b[2m─\u001b[0m 数据   ${DATA_DIR}`);
-    console.log(`  \u001b[2m─\u001b[0m 模型   ${settings.enabled ? `${settings.model} 已配置` : '未配置 Key（启发式模式）'}`);
+    console.log(`  \u001b[2m─\u001b[0m 数据   ${app.store.dataDir}`);
+    console.log(`  \u001b[2m─\u001b[0m 模型   ${settings.enabled ? settings.model : 'DSH / 启发式'}`);
     console.log('');
   });
   const shutdown = (signal) => {

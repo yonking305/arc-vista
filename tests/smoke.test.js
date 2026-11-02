@@ -15,11 +15,12 @@ import { analyzeArchitecture } from '../lib/analyze/architecture.js';
 import { analyzeKnowledge } from '../lib/analyze/knowledge.js';
 import { extractJson } from '../lib/llm.js';
 import { diffSnapshots } from '../lib/diff.js';
-import { GitStore, isRetryableGitError } from '../lib/git.js';
-import { openDatabase } from '../lib/db.js';
+import { openStore } from '../lib/store.js';
+import { analyzeRepository } from '../lib/analyze/index.js';
 import { JobRunner } from '../lib/jobs.js';
 import { chatJson } from '../lib/llm.js';
 import { createArcVistaApp } from '../server.js';
+import { inspectProject } from '../lib/local-git.js';
 
 const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'arcvista-test-'));
 
@@ -41,6 +42,7 @@ write('src/order/order.test.ts', `import { test, expect } from 'vitest';\nimport
 write('server/index.js', `const express = require('express');\nconst app = express();\napp.get('/health', (req, res) => res.json({ ok: true }));\napp.listen(3000);\n`);
 write('server/routes.js', `const express = require('express');\nconst router = express.Router();\nrouter.get('/orders', (req, res) => res.json([]));\nmodule.exports = router;\n`);
 write('docs/architecture.md', '# Demo\nA small demo system.');
+write('.arcvista/generated-secret.js', 'export const shouldNotBeScanned = true;');
 write('Dockerfile', 'FROM node:22-alpine\nUSER node\nCMD ["node", "server/index.js"]');
 write('docker-compose.yml', `services:\n  mysql:\n    image: mysql:8\n  redis:\n    image: redis:7\n`);
 write('coverage/coverage-summary.json', JSON.stringify({
@@ -56,6 +58,7 @@ test('scanRepo classifies files and projects', async () => {
   const repo = await scanRepo(fixture);
   assert.ok(repo.totals.files >= 8);
   assert.ok(repo.totals.sourceFiles >= 4);
+  assert.equal(repo.files.some((file) => file.path.startsWith('.arcvista/')), false);
   assert.ok(repo.projects.some((project) => project.type === 'node'));
   assert.equal(repo.read('package.json').includes('express'), true);
   assert.equal(repo.read('missing.ts'), null);
@@ -173,158 +176,70 @@ test('extractJson tolerates fences and prose', () => {
 });
 
 
-test('git errors are classified for retry', () => {
-  const timeout = Object.assign(new Error('fatal: unable to access: Operation timed out'), { timedOut: true });
-  assert.equal(isRetryableGitError(timeout), true);
-  assert.equal(isRetryableGitError(new Error('fatal: unable to access https://x: Could not resolve host: github.com')), true);
-  assert.equal(isRetryableGitError(new Error('error: RPC failed; HTTP 502')), true);
-  assert.equal(isRetryableGitError(new Error('remote: Repository not found')), false);
-  assert.equal(isRetryableGitError(new Error('Authentication failed for https://x')), false);
-  assert.equal(isRetryableGitError(new Error('fatal: not a git repository')), false);
-});
-
-test('git mirror clone retries transient failures with backoff', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'arcvista-git-retry-'));
-  let calls = 0;
-  let cloneCalls = 0;
-  const logs = [];
-  const run = async (args) => {
-    calls += 1;
-    if (args[0] === 'clone') {
-      cloneCalls += 1;
-      if (cloneCalls <= 2) {
-        const error = new Error('fatal: unable to access: Connection reset by peer');
-        error.timedOut = true;
-        throw error;
-      }
-    }
-    if (args.includes('symbolic-ref')) return 'main\n';
-    return '';
-  };
-  const store = new GitStore(dir, { run, retryAttempts: 3, retryDelayMs: 5 });
-  const result = await store.ensureMirror({ id: 'test', repoUrl: 'https://example.com/demo.git' }, (message) => logs.push(message));
-  assert.equal(result.defaultBranch, 'main');
-  assert.equal(cloneCalls, 3);
-  assert.ok(calls >= 3);
-  assert.ok(logs.some((line) => /自动重试/.test(line)));
-  assert.ok(logs.some((line) => /重试克隆/.test(line)));
-});
-
-test('git retry gives up after configured attempts with a resumable hint', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'arcvista-git-fail-'));
-  let calls = 0;
-  const run = async () => {
-    calls += 1;
-    const error = new Error('fatal: unable to access: Operation timed out after 900000 milliseconds');
-    error.timedOut = true;
-    throw error;
-  };
-  const store = new GitStore(dir, { run, retryAttempts: 3, retryDelayMs: 5 });
-  await assert.rejects(
-    store.ensureMirror({ id: 'fail', repoUrl: 'https://example.com/demo.git' }, () => {}),
-    /已自动尝试 3 次.*重试分析/,
-  );
-  assert.equal(calls, 3);
-});
-
-
-test('database backups survive data-dir loss and auto-restore', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'arcvista-backup-'));
+test('JSON store persists global projects and per-project snapshots', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'arcvista-json-store-'));
   const dataDir = path.join(root, 'data');
-  const backupDir = path.join(root, 'backups');
-  let store = openDatabase(dataDir, { backupDir });
-  const product = store.products.create({ name: '云端商城', repoUrl: 'https://github.com/demo/shop.git' });
-  store.products.create({ name: '交易中心', repoUrl: 'https://github.com/demo/trade.git' });
-  const backup = store.backups.create('test');
-  assert.ok(fs.existsSync(backup.file));
-  assert.equal(store.backups.info().count, 1);
-  store.close();
+  const projectDir = path.join(root, 'local-project');
+  fs.mkdirSync(projectDir, { recursive: true });
+  fs.writeFileSync(path.join(projectDir, 'package.json'), JSON.stringify({ name: 'local-demo' }));
 
-  fs.rmSync(dataDir, { recursive: true, force: true });
-  store = openDatabase(dataDir, { backupDir });
-  assert.ok(store.backups.restoredFrom);
-  assert.equal(store.products.get(product.id).name, '云端商城');
-  assert.equal(store.products.list().length, 2);
-  store.close();
-});
-
-
-test('job runner queues per-product branches and drains in order', async () => {
-  const rows = new Map();
-  const store = {
-    jobs: {
-      upsert(job) {
-        rows.set(job.id, { ...job });
-      },
-      get(id) {
-        const job = rows.get(id);
-        return job ? { ...job, logs: job.logs || [] } : null;
-      },
-      listByProduct() {
-        return [];
-      },
-      latestByProduct() {
-        return null;
-      },
-    },
-  };
-  const runner = new JobRunner(store, { logger: { error() {} } });
-  const order = [];
-  const first = runner.start({
-    productId: 'p1',
-    kind: 'analyze',
+  let store = openStore(dataDir);
+  const project = store.products.create({ name: '本地商城', path: projectDir, description: 'demo' });
+  const snapshotId = store.snapshots.insert({
+    productId: project.id,
     branch: 'main',
-    run: async () => {
-      order.push('main');
-      await new Promise((resolve) => setTimeout(resolve, 40));
-      return { snapshotId: 's1' };
-    },
+    commit: { sha: 'a'.repeat(40), short: 'aaaaaaa', subject: 'local', author: 't', date: '2026-01-01T00:00:00Z' },
+    analyzedAt: '2026-01-01T00:00:00Z',
+    engine: 'heuristic',
+    summary: { ok: true },
+    analysis: { version: 1, answer: 42 },
   });
-  const second = runner.start({
-    productId: 'p1',
-    kind: 'analyze',
-    branch: 'feature/demo',
-    run: async () => {
-      order.push('feature/demo');
-      return { snapshotId: 's2' };
-    },
+  store.settings.set('llm_enabled', 'off');
+  store.jobs.upsert({
+    id: 'job_json', productId: project.id, kind: 'analyze', branch: 'main', status: 'running',
+    progress: 5, message: 'working', logs: [], error: null, result: null,
+    createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z',
   });
-  assert.equal(first.status, 'running');
-  assert.equal(second.status, 'queued');
-  assert.equal(second.branch, 'feature/demo');
-  assert.equal(runner.queueDepth('p1'), 1);
-  await new Promise((resolve) => setTimeout(resolve, 150));
-  assert.deepEqual(order, ['main', 'feature/demo']);
-  assert.equal(runner.get(first.id).status, 'done');
-  assert.equal(runner.get(second.id).status, 'done');
-});
+  assert.ok(fs.existsSync(path.join(dataDir, 'projects.json')));
+  assert.ok(fs.existsSync(path.join(projectDir, '.arcvista', 'snapshots', `${snapshotId}.json`)));
+  assert.ok(!fs.existsSync(path.join(dataDir, 'arcvista.db')));
+  store.close();
 
-test('unfinished jobs are marked interrupted on startup', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'arcvista-jobs-'));
-  const store = openDatabase(path.join(root, 'data'), { backupDir: path.join(root, 'backups') });
-  const stamp = new Date().toISOString();
-  for (const [id, status] of [['job_running', 'running'], ['job_queued', 'queued'], ['job_done', 'done']]) {
-    store.jobs.upsert({
-      id,
-      productId: null,
-      kind: 'analyze',
-      branch: 'main',
-      status,
-      progress: 10,
-      message: status,
-      logs: [],
-      createdAt: stamp,
-      updatedAt: stamp,
-    });
-  }
-  assert.equal(store.jobs.interruptActive(), 2);
-  assert.equal(store.jobs.get('job_running').status, 'error');
-  assert.equal(store.jobs.get('job_queued').status, 'error');
-  assert.equal(store.jobs.get('job_done').status, 'done');
-  assert.match(store.jobs.get('job_running').error, /服务重启/);
+  store = openStore(dataDir);
+  assert.equal(store.products.get(project.id).name, '本地商城');
+  assert.equal(store.products.get(project.id).path, projectDir);
+  assert.equal(store.snapshots.get(snapshotId).analysis.answer, 42);
+  assert.equal(store.snapshots.listByProduct(project.id).length, 1);
+  assert.equal(store.settings.get('llm_enabled'), 'off');
+  assert.equal(store.jobs.interruptActive(), 1);
+  assert.equal(store.jobs.get('job_json').status, 'error');
   store.close();
 });
 
+test('analysis reads a local directory and writes .arcvista artifacts', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'arcvista-local-analyze-'));
+  const dataDir = path.join(root, 'data');
+  const store = openStore(dataDir);
+  const projectDir = path.join(root, 'project');
+  fs.mkdirSync(path.join(projectDir, 'src'), { recursive: true });
+  fs.writeFileSync(path.join(projectDir, 'package.json'), JSON.stringify({ name: 'local-app', dependencies: { express: '^4.19.0' } }));
+  fs.writeFileSync(path.join(projectDir, 'src', 'app.js'), "const express = require('express');\nconst app = express();\napp.get('/health', (req, res) => res.json({ ok: true }));\n");
+  const project = store.products.create({ name: 'local fixture', path: projectDir });
+  const result = await analyzeRepository({
+    store,
+    product: project,
+    llm: { enabled: false, model: null },
+    log: () => {},
+    progress: () => {},
+  });
+  assert.ok(result.snapshotId);
+  assert.ok(fs.existsSync(path.join(projectDir, '.arcvista', 'snapshots', `${result.snapshotId}.json`)));
+  assert.equal(store.snapshots.count(project.id), 1);
+  const info = await inspectProject(projectDir);
+  assert.equal(info.isGit, false);
+  assert.equal(store.products.get(project.id).path, projectDir);
+  store.close();
+});
 
 test('chatJson uses an injected DSH model bridge', async () => {
   const result = await chatJson(
@@ -341,6 +256,7 @@ test('createArcVistaApp mounts without binding a port', () => {
     dataDir: path.join(root, 'data'),
     backupDir: path.join(root, 'backups'),
     llm: { enabled: true, model: 'dsh-test', temperature: 0.2, chat: async () => '{"ok":true}' },
+    workspaces: () => [{ id: 'ws1', title: 'demo', path: fixture }],
   });
   assert.equal(app.router.match('GET', '/api/health') !== null, true);
   assert.equal(app.getLlmSettings().baseUrl, 'DSH');

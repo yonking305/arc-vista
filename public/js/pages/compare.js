@@ -5,8 +5,8 @@ import { animateGauges, gauge } from '../charts.js';
 const VERDICT_META = {
   risk: { label: '存在风险', tone: 'bad', cls: 'risk', desc: '变更引入了需要处理的风险信号' },
   watch: { label: '需要关注', tone: 'warn', cls: 'watch', desc: '出现一些退化，建议在合并前确认' },
-  stable: { label: '基本稳定', tone: 'info', cls: 'stable', desc: '两个分支之间没有显著指标变化' },
-  improved: { label: '整体改善', tone: 'good', cls: 'improved', desc: '质量与安全指标较基准分支提升' },
+  stable: { label: '基本稳定', tone: 'info', cls: 'stable', desc: '两个快照之间没有显著指标变化' },
+  improved: { label: '整体改善', tone: 'good', cls: 'improved', desc: '质量与安全指标较基准快照提升' },
 };
 
 function statusColor(status, direction, delta) {
@@ -87,7 +87,7 @@ export async function renderCompare(main, ctx) {
     <div class="dash-head">
       <div class="crumb">
         <a href="#/">观测台</a><span class="sep">/</span>
-        <a href="#/p/${esc(productId)}">${esc(product.name)}</a><span class="sep">/</span><span>分支对比</span>
+        <a href="#/p/${esc(productId)}">${esc(product.name)}</a><span class="sep">/</span><span>快照对比</span>
       </div>
       <div class="dash-title-row">
         <div>
@@ -95,11 +95,11 @@ export async function renderCompare(main, ctx) {
           <div class="dash-badges">
             <span class="chip chip--amber">${esc(baseSnapshot?.branch || '基准')} → ${esc(targetSnapshot?.branch || '目标')}</span>
             <span class="chip chip--dim">${esc(baseSnapshot?.commit?.short || '')} → ${esc(targetSnapshot?.commit?.short || '')}</span>
-            <span class="chip chip--dim">${snapshots.length} 个快照 · ${byBranch.size} 个分支</span>
+            <span class="chip chip--dim">${snapshots.length} 个快照 · ${byBranch.size} 个版本</span>
           </div>
         </div>
         <div class="dash-actions">
-          <button class="btn" id="analyze-branch">${icon('branch', 13)} 分析新分支</button>
+          <button class="btn" id="analyze-branch">${icon('refresh', 13)} 分析当前工作区</button>
           <button class="btn" id="back-dashboard">${icon('back', 13)} 返回看板</button>
         </div>
       </div>
@@ -112,10 +112,10 @@ export async function renderCompare(main, ctx) {
         <div class="panel mt-24">
           <div class="panel-body" style="padding:42px 36px">
             <div class="eyebrow">NEED A SECOND SNAPSHOT</div>
-            <h2 style="font-family:var(--font-display);font-size:30px;font-weight:600;margin:14px 0 10px">先分析第二个分支</h2>
-            <p class="page-sub">分支对比需要两个快照。当前只有 ${snapshots.length} 个。选择一个分支进行分析，ArcVista 会保存独立快照，然后自动计算安全守护、依赖、复杂度与覆盖率的变化。</p>
+            <h2 style="font-family:var(--font-display);font-size:30px;font-weight:600;margin:14px 0 10px">先分析第二个快照</h2>
+            <p class="page-sub">快照对比需要两个快照。当前只有 ${snapshots.length} 个。重新分析当前工作区会保存独立快照，然后自动计算安全守护、依赖、复杂度与覆盖率的变化。</p>
             <div class="row row--wrap mt-24" style="gap:10px">
-              <button class="btn btn--primary" id="analyze-branch-cta">${icon('branch', 14)} 分析一个分支</button>
+              <button class="btn btn--primary" id="analyze-branch-cta">${icon('refresh', 14)} 重新分析当前工作区</button>
               <button class="btn" id="back-dashboard-cta">${icon('back', 14)} 返回看板</button>
             </div>
             ${
@@ -130,7 +130,7 @@ export async function renderCompare(main, ctx) {
           </div>
         </div>
         <div id="job-area"></div>
-        <footer class="footer-note"><span>${esc(product.repoUrl)}</span><span>BRANCH DIFF</span></footer>
+        <footer class="footer-note"><span>${esc(product.path || product.repoUrl)}</span><span>SNAPSHOT DIFF</span></footer>
       </div>`;
     $('#back-dashboard').addEventListener('click', () => navigate(`/p/${productId}`));
     $('#back-dashboard-cta').addEventListener('click', () => navigate(`/p/${productId}`));
@@ -375,37 +375,23 @@ export async function renderCompare(main, ctx) {
 
   async function analyzeModal() {
     openModal({
-      eyebrow: 'ANALYZE BRANCH',
-      title: '分析一个分支',
+      eyebrow: 'ANALYZE WORKSPACE',
+      title: '分析当前工作区',
       body: `
-        <div class="banner"><div>快照生成后即可与本页的基准快照对比。首次分析需要克隆仓库，可能需要几十秒。</div></div>
+        <div class="banner"><div>ArcVista 会重新读取当前本地目录并保存一个独立快照。不会克隆、拉取或切换分支。</div></div>
         <div class="field">
-          <label>仓库分支</label>
-          <select class="select" id="branch-select">
-            ${branches.map((branch) => `<option value="${esc(branch.name)}">${esc(branch.name)} · ${esc(branch.short)}</option>`).join('')}
-            ${branches.length ? '' : '<option value="main">main</option>'}
-            <option value="__custom">手动输入分支 / 提交…</option>
-          </select>
-        </div>
-        <div class="field" id="custom-branch-field" style="display:none">
-          <label>分支名或提交 SHA</label>
-          <input class="input" id="branch-input" placeholder="feature/xxx" />
+          <label>分析范围</label>
+          <div class="help">当前工作区：<span class="mono">${esc(product.path || product.repoUrl)}</span></div>
         </div>`,
       actions: [
         { label: '取消' },
         {
           label: '开始分析',
           primary: true,
-          onClick: async (close, modal) => {
-            let branch = modal.querySelector('#branch-select').value;
-            if (branch === '__custom') branch = modal.querySelector('#branch-input').value.trim();
-            if (!branch) {
-              toast('请填写分支名', { type: 'warn' });
-              return false;
-            }
+          onClick: async (close) => {
             close();
             try {
-              const { job } = await api.products.analyze(productId, { branch });
+              const { job } = await api.products.analyze(productId, { force: true });
               toast('分析任务已启动');
               watchJob(job);
             } catch (error) {
@@ -415,16 +401,8 @@ export async function renderCompare(main, ctx) {
           },
         },
       ],
-      onMount: (modal) => {
-        const select = modal.querySelector('#branch-select');
-        select.addEventListener('change', () => {
-          modal.querySelector('#custom-branch-field').style.display = select.value === '__custom' ? 'flex' : 'none';
-        });
-      },
     });
   }
-
-  $('#analyze-branch', main)?.addEventListener('click', analyzeModal);
 
   async function watchJob(job) {
     const jobArea = $('#job-area', main);
@@ -435,7 +413,7 @@ export async function renderCompare(main, ctx) {
         <div class="job-banner" style="margin-top:24px">
           <span class="spinner"></span>
           <div class="job-text">
-            <div class="job-title">分析分支</div>
+            <div class="job-title">分析当前工作区</div>
             <div class="job-msg">${esc(current.message || '')}</div>
             <div class="progress"><i style="width:${current.progress || 0}%"></i></div>
           </div>

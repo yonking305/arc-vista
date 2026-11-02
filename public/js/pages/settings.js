@@ -31,7 +31,7 @@ export async function renderSettings(main, ctx) {
 
       ${
         health?.backups?.restoredFrom
-          ? `<div class="banner banner--teal mb-24"><span>${icon('shield', 16)}</span><div><strong>已从备份自动恢复</strong> 检测到数据目录缺少数据库，已自动从最近一次备份恢复：<span class="mono">${esc(health.backups.restoredFrom)}</span></div></div>`
+          ? `<div class="banner banner--teal mb-24"><span>${icon('shield', 16)}</span><div><strong>已从备份自动恢复</strong> 检测到全局 JSON 数据缺失，已自动从最近一次备份恢复：<span class="mono">${esc(health.backups.restoredFrom)}</span></div></div>`
           : ''
       }
 
@@ -84,7 +84,7 @@ export async function renderSettings(main, ctx) {
               <label for="set-key">API Key</label>
               <input class="input" id="set-key" type="password" autocomplete="off"
                 placeholder="${llm.hasKey ? `已保存 ${esc(llm.apiKeyMasked || '')}（留空保持不变）` : 'sk-...'}" />
-              <div class="help">${llm.envKey ? '检测到环境变量 ARCVISTA_LLM_API_KEY，环境变量优先于页面配置。' : '密钥只写入本地 SQLite，不会发送到客户端以外的任何地方。'}</div>
+              <div class="help">${llm.envKey ? '检测到环境变量 ARCVISTA_LLM_API_KEY，环境变量优先于页面配置。' : '密钥只写入本地设置，不会发送到客户端以外的任何地方。'}</div>
             </div>
             <div class="field-row">
               <div class="field">
@@ -164,7 +164,7 @@ export async function renderSettings(main, ctx) {
       const data = await api.backup();
       const note = $('#backup-note', main);
       if (note) note.textContent = `已备份 · ${timeAgo(data.backup.at)} · ${fmtBytes(data.backup.size)}`;
-      toast('数据库已备份', { detail: data.backup.file });
+      toast('数据已备份', { detail: data.backup.file });
     } catch (error) {
       toast('备份失败', { type: 'error', detail: error.message });
     } finally {

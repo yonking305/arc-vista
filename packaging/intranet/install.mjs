@@ -144,7 +144,7 @@ function checkNode() {
   const supported = (major === 22 && minor >= MIN_NODE[1]) || major >= 24;
   if (!supported) {
     throw new InstallError(
-      `当前 Node.js 版本为 ${process.versions.node}，ArcVista 要求 Node.js 22.19+ 或 24+（使用内置 node:sqlite）。\n` +
+      `当前 Node.js 版本为 ${process.versions.node}，ArcVista 要求 Node.js 22.19+ 或 24+（使用本地 JSON 存储）。\n` +
         '  DSH 自带满足要求的 Node，请用 DSH 自带的 node 运行本安装器，或先升级 Node.js。',
     );
   }
@@ -500,8 +500,8 @@ function printNextSteps(profile, manifest) {
   console.log(dim('     http://127.0.0.1:3080/arcvista/'));
   console.log('');
   console.log(cyan('数据与网络：'));
-  console.log('  - 数据目录：~/.dsh/arcvista（SQLite、仓库镜像、备份），卸载不会删除；');
-  console.log('  - 分析时用 git 克隆/拉取被观测仓库，仓库地址必须在内网可达；');
+  console.log('  - 数据目录：~/.dsh/arcvista（项目列表、任务、全局备份），卸载不会删除；分析快照在项目自己的 .arcvista/；');
+  console.log('  - 分析时只读取本机项目目录，不联网、不克隆仓库；');
   console.log('  - 模型由 DSH 当前默认模型提供，不额外直连外网；没有可用模型时静态分析仍完整可用。');
   console.log('');
   console.log(dim(`  dsh-arcvista ${manifest?.version || ''} · 详细说明见 README.md`));

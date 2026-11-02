@@ -43,7 +43,7 @@ function toneColor(tone) {
   return { good: 'var(--teal)', warn: 'var(--amber)', bad: 'var(--red)', na: 'var(--text-faint)' }[tone] || 'var(--text-faint)';
 }
 
-const JOB_KIND_LABEL = { prepare: '准备仓库', analyze: '分析分支', drill: '模块下钻' };
+const JOB_KIND_LABEL = { prepare: '准备目录', analyze: '本地项目分析', drill: '模块下钻' };
 
 function jobKindLabel(job) {
   return JOB_KIND_LABEL[job.kind] || '任务';
@@ -57,7 +57,7 @@ function jobElapsedSeconds(job) {
 function jobCardHTML(job) {
   const running = job.status === 'running';
   const queued = job.status === 'queued';
-  const label = job.kind === 'prepare' ? '准备仓库' : job.kind === 'analyze' ? '分析分支' : '任务';
+  const label = job.kind === 'prepare' ? '准备目录' : job.kind === 'analyze' ? '本地项目分析' : '任务';
   const logs = (job.logs || []).slice(-3);
   const indeterminate = running && job.kind === 'prepare' && (job.progress || 0) < 8;
   const statusText = queued ? '排队中' : running ? '进行中' : job.status === 'done' ? '已完成' : '失败';
@@ -87,7 +87,7 @@ function jobCardsHTML(jobs = []) {
 
 function renderRisks(risks = []) {
   if (!risks.length) {
-    return '<div class="empty"><div class="empty-mark" style="color:var(--teal)">◇</div><h4>当前未发现显著风险</h4><p>指标与守护均在可接受范围。持续观察分支对比中的架构漂移。</p></div>';
+    return '<div class="empty"><div class="empty-mark" style="color:var(--teal)">◇</div><h4>当前未发现显著风险</h4><p>指标与守护均在可接受范围。持续观察快照对比中的架构漂移。</p></div>';
   }
   return `<div class="risk-list">
     ${[...risks]
@@ -213,12 +213,9 @@ export async function renderDashboard(main, ctx) {
     : '';
   const headerActionsHTML = analysis
     ? `${snapshotSelectHTML}
-       <button class="btn" id="analyze-branch">${icon('branch', 13)} 分析分支</button>
-       <button class="btn" id="go-compare">${icon('compare', 13)} 分支对比</button>
-       <button class="btn btn--primary" id="reanalyze" ${activeJobs.length ? 'disabled' : ''}>${icon('refresh', 13)} 重新分析</button>`
-    : `${repoReady ? `<button class="btn" id="analyze-branch" ${preparing ? 'disabled' : ''}>${icon('branch', 13)} 分析分支</button>
-         <button class="btn" id="refresh-branches" ${preparing ? 'disabled' : ''}>${icon('refresh', 13)} 刷新分支</button>`
-       : `<button class="btn btn--primary" id="prepare-repo" ${preparing ? 'disabled' : ''}>${icon('refresh', 13)} ${preparing ? '正在准备仓库' : '准备仓库'}</button>`}`;
+       <button class="btn" id="go-compare">${icon('compare', 13)} 快照对比</button>
+       <button class="btn btn--primary" id="reanalyze" ${activeJobs.length ? 'disabled' : ''}>${icon('refresh', 13)} 重新分析当前工作区</button>`
+    : `${repoReady ? `<button class="btn btn--primary" id="reanalyze" ${activeJobs.length ? 'disabled' : ''}>${icon('refresh', 13)} 分析当前工作区</button>` : ''}`;
 
   const kpi = !analysis
     ? ''
@@ -271,8 +268,8 @@ export async function renderDashboard(main, ctx) {
               ${selected ? `<span class="chip chip--dim">${esc(selected.commit?.short || '')}</span>` : ''}
               ${selected ? `<span class="chip ${selected.engine === 'llm' ? 'chip--violet' : 'chip--dim'}">${selected.engine === 'llm' ? 'LLM 语义增强' : '启发式分析'}</span>` : ''}
               ${selected ? `<span class="chip chip--dim">${esc(timeAgo(selected.analyzedAt))}</span>` : ''}
-              ${!selected && repoReady ? `<span class="chip chip--dim">${(detail.branches || []).length} 个分支</span>` : ''}
-              ${!selected ? `<span class="chip ${repoReady ? 'chip--teal' : 'chip--dim'}">${repoReady ? '仓库已就绪' : preparing ? '正在准备仓库' : '仓库未就绪'}</span>` : ''}
+              ${!selected && repoReady ? `<span class="chip chip--dim">本地目录</span>` : ''}
+              ${!selected ? `<span class="chip ${repoReady ? 'chip--teal' : 'chip--dim'}">${repoReady ? '目录可读' : '目录不可用'}</span>` : ''}
               <span class="chip chip--dim">/${esc(product.repoKind)}</span>
             </div>
             <div class="dash-meta">
@@ -310,7 +307,7 @@ export async function renderDashboard(main, ctx) {
           : emptyStateHTML()
       }
       <footer class="footer-note">
-        <span>${esc(product.repoUrl)}</span>
+        <span>${esc(product.path || product.repoUrl)}</span>
         <span>${selected ? `SNAPSHOT ${esc(selected.id)}` : 'NO SNAPSHOT'}</span>
       </footer>
     </div>`;
@@ -351,10 +348,10 @@ export async function renderDashboard(main, ctx) {
   async function startPrepare() {
     try {
       await api.products.prepare(productId);
-      toast('开始准备仓库', { detail: '克隆/拉取完成后会显示分支列表' });
+      toast('开始分析当前工作区');
       beginPolling();
     } catch (error) {
-      toast('无法准备仓库', { type: 'error', detail: error.message });
+      toast('无法开始分析', { type: 'error', detail: error.message });
     }
   }
 
@@ -476,7 +473,7 @@ export async function renderDashboard(main, ctx) {
       <div class="panel-head">
         <div>
           <div class="panel-title">分支分析清单 · BRANCHES</div>
-          <div class="panel-sub">仓库已就绪，检测到 ${rows.length} 个分支。勾选未分析的分支后开始分析，任务会按队列依次执行。</div>
+          <div class="panel-sub">本地目录已就绪，当前工作区对应 ${rows.length} 个分析项。</div>
         </div>
         <div class="panel-tools">
           <span class="chip chip--teal">已分析 ${analyzedCount}</span>
@@ -494,20 +491,12 @@ export async function renderDashboard(main, ctx) {
 
   function emptyStateHTML() {
     if (activeJobs.length > 0) return '';
-    if (!repoReady) {
-      const failed = latestPrepareJob?.status === 'error';
-      return `<div class="empty mt-24">
-        <div class="empty-mark">${icon(failed ? 'warning' : 'layers', 40)}</div>
-        <h4>${failed ? '仓库准备失败' : '仓库尚未就绪'}</h4>
-        <p>${failed ? esc(latestPrepareJob.error || '克隆/拉取仓库失败') : '先克隆并拉取仓库，之后可以看到全部分支，再选择要分析的分支。'}</p>
-        <div class="row mt-8"><button class="btn btn--primary" data-action="prepare">${failed ? '重试准备仓库' : '准备仓库'} ${icon('arrow', 13)}</button></div>
-        ${failed ? '<div class="help mt-8">Git 超时会自动重试并断点续传；网络恢复后再试即可继续。</div>' : ''}
-      </div>`;
-    }
-    if (!branchAnalysis.length) {
-      return `<div class="empty mt-24"><div class="empty-mark">${icon('branch', 40)}</div><h4>没有检测到分支</h4><p>仓库镜像已就绪，但没有可分析的分支。可以刷新分支或检查仓库是否为空。</p><div class="row mt-8"><button class="btn btn--primary" data-action="prepare">刷新分支 ${icon('refresh', 13)}</button></div></div>`;
-    }
-    return branchPanelHTML(branchAnalysis);
+    return `<div class="empty mt-24">
+      <div class="empty-mark">${icon(repoReady ? 'layers' : 'warning', 40)}</div>
+      <h4>${repoReady ? '这个本地项目还没有分析快照' : '本地目录当前不可访问'}</h4>
+      <p>${repoReady ? 'ArcVista 会直接读取当前工作区，不克隆、不切换分支；分析结果写入项目内的 .arcvista/。' : esc(product.path || product.repoUrl)}</p>
+      ${repoReady ? '<div class="row mt-8"><button class="btn btn--primary" data-action="analyze-now">分析当前工作区</button></div>' : ''}
+    </div>`;
   }
 
   async function openBranchModal() {
@@ -519,7 +508,7 @@ export async function renderDashboard(main, ctx) {
     }
     const rows = fresh?.branchAnalysis || branchAnalysis;
     if (!fresh?.repoReady && rows.length === 0) {
-      toast('仓库尚未就绪，先准备仓库', { type: 'warn' });
+      toast('本地目录不可访问', { type: 'warn' });
       startPrepare();
       return;
     }
@@ -633,6 +622,7 @@ export async function renderDashboard(main, ctx) {
   $('#go-compare', main)?.addEventListener('click', () => navigate(`/p/${productId}/compare`));
 
   delegate(main, '[data-action="prepare"]', 'click', startPrepare);
+  delegate(main, '[data-action="analyze-now"]', 'click', () => startAnalysis({ force: true }));
   delegate(main, '[data-action="analyze-selected"]', 'click', () => {
     const scope = $('#branch-panel', main) || main;
     startBranches(selectedBranches(scope));
@@ -665,7 +655,7 @@ export async function renderDashboard(main, ctx) {
         <div class="panel-head">
           <div>
             <div class="panel-title">系统架构图 · SYSTEM MAP</div>
-            <div class="panel-sub">${esc(architecture.subtitle || '由仓库结构、依赖与配置推断')}</div>
+            <div class="panel-sub">${esc(architecture.subtitle || '由项目结构、依赖与配置推断')}</div>
           </div>
           <div class="panel-tools">
             <span class="chip chip--dim">${architecture.stats?.nodes || 0} 节点</span>
@@ -775,7 +765,7 @@ export async function renderDashboard(main, ctx) {
       </div>
       <div class="row spread mt-24 mb-16">
         <div class="panel-title">安全守护清单 · ${guards.length}</div>
-        <div class="help">状态来自仓库中的真实配置与代码证据，规则清单可用于分支 diff</div>
+        <div class="help">状态来自项目里的真实配置与代码证据，规则清单可用于快照 diff</div>
       </div>
       <div class="guard-grid">
         ${guards
@@ -800,7 +790,7 @@ export async function renderDashboard(main, ctx) {
       ${
         (security.ruleSets || []).length
           ? `<div class="panel mt-24">
-              <div class="panel-head"><div><div class="panel-title">可对比规则集 · RULE SETS</div><div class="panel-sub">分支对比会逐条比较这些规则的新增与移除</div></div></div>
+              <div class="panel-head"><div><div class="panel-title">可对比规则集 · RULE SETS</div><div class="panel-sub">快照对比会逐条比较这些规则的新增与移除</div></div></div>
               <div class="panel-body panel-body--flush table-wrap">
                 <table class="data-table">
                   <thead><tr><th>规则集</th><th>类型</th><th class="num">规则数</th><th>文件</th></tr></thead>
@@ -1061,7 +1051,7 @@ export async function renderDashboard(main, ctx) {
     const untested = coverage.untestedModules || [];
     const untestedFiles = (coverage.files || []).filter((file) => file.tested === false).slice(0, 40);
     tabPanel.innerHTML = `
-      ${coverage.estimated ? `<div class="banner mb-16"><span>${icon('warning', 16)}</span><div><strong>估算值</strong> 仓库中没有发现覆盖率产物（jacoco / lcov / cobertura / istanbul）。${esc(coverage.note || '')}</div></div>` : ''}
+      ${coverage.estimated ? `<div class="banner mb-16"><span>${icon('warning', 16)}</span><div><strong>估算值</strong> 项目中没有发现覆盖率产物（jacoco / lcov / cobertura / istanbul）。${esc(coverage.note || '')}</div></div>` : ''}
       <div class="panel">
         <div class="coverage-hero">
           ${gauge(coverage.line, {

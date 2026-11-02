@@ -66,11 +66,26 @@ export function apply(ctx, config = {}) {
       path.join(os.homedir(), '.dsh', 'arcvista'),
   );
   const backupDir = path.resolve(config.backupDir || process.env.ARCVISTA_BACKUP_DIR || path.join(dataDir, 'backups'));
+  const listWorkspaces = () => {
+    try {
+      const registry = typeof ctx.get === 'function' ? ctx.get('workspaceRegistry') : undefined;
+      if (!registry?.list) return [];
+      return registry.list().map((workspace) => ({
+        id: String(workspace.id),
+        title: String(workspace.title || ''),
+        path: String(workspace.path || ''),
+        createdAt: workspace.createdAt || null,
+      }));
+    } catch {
+      return [];
+    }
+  };
   const app = createArcVistaApp({
     dataDir,
     publicDir: path.join(APP_ROOT, 'public'),
     backupDir,
     llm: createDshLlm(ctx),
+    workspaces: listWorkspaces,
   });
 
   const handler = async (req, res) => {

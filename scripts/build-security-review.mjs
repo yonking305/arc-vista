@@ -295,8 +295,8 @@ function classify(match) {
   if (match.scope === 'plugin' && (file === 'lib/http.js' || file === 'server.js')) {
     return '本机 HTTP 服务/路由实现；DSH 插件模式不调用 listen，仅注册 /arcvista 路由';
   }
-  if (match.scope === 'plugin' && file === 'lib/git.js') {
-    return '调用本机 git 子进程访问用户指定仓库地址（克隆/拉取/检出）';
+  if (match.scope === 'plugin' && file === 'lib/local-git.js') {
+    return '调用本机 git 子进程读取本地项目的分支、提交与变更历史（不联网）';
   }
   if (match.scope === 'installer' && file === 'install.mjs') {
     return '安装器调用本机 dsh CLI 做只读版本/配置校验（spawnSync）';
@@ -418,9 +418,9 @@ ${table(
 2. **零第三方运行时依赖**：插件 package.json 没有 dependencies / devDependencies / peerDependencies，安装过程不会解析或下载任何依赖树。
 3. **无安装期生命周期脚本**：不存在 preinstall / install / postinstall / prepare 等安装期钩子；仅有的 prepack 只在开发机执行本地只读校验脚本，安装 tarball 时不会运行。
 4. **安装器不联网**：安装器只做本地文件复制 + DSH profile 注册 + 调用本机 dsh CLI 做只读校验，不访问 registry、GitHub 或任何远程服务。
-5. **运行期外联边界清晰**：唯一的主动外联是调用本机 git 访问"用户自己填写的被观测仓库地址"；DSH 插件模式下模型调用经 DSH 的 llm 服务（DSH 已配置的模型服务商），插件不直连模型。
+5. **运行期外联边界清晰**：唯一的主动外联是 DSH 模型调用；本机 git 只读取用户选择的本地目录；DSH 插件模式下模型调用经 DSH 的 llm 服务（DSH 已配置的模型服务商），插件不直连模型。
 6. **模型直连代码在插件模式下不可达**：lib/llm.js 的 fetch 仅在独立运行模式（npm start）且用户显式配置 Base URL + API Key 后才会执行；DSH 插件模式下模型由 DSH 注入，设置写入与连通性测试接口均被短路。
-7. **不收集、不上传数据**：没有遥测、埋点、统计上报代码；数据只写入本机用户目录（~/.dsh/arcvista），SQLite、仓库镜像与备份均留在本地。
+7. **不收集、不上传数据**：没有遥测、埋点、统计上报代码；数据只写入本机用户目录（~/.dsh/arcvista），全局 JSON 与项目内 .arcvista 分析产出均留在本地。
 8. **静态扫描结果**：未发现密钥/凭据、隐私凭据、eval/new Function 等动态执行、混淆或隐藏载荷特征。逐项证据见 05 文档与 evidence/ 目录。
 
 ## 已知风险与边界（建议评审时一并确认）
@@ -428,7 +428,7 @@ ${table(
 ${table(
     ['能力', '触发条件', '数据流向', '控制/关闭方式'],
     [
-      ['调用本机 git 访问仓库', '用户在产品里填写 Git 地址并分析', '被克隆仓库内容留在本机；不向插件作者回传', '只填写内网可达仓库；不分析外部仓库即可'],
+      ['调用本机 git 读取本地目录', '用户选择本地项目并分析', '只读取本机目录；不向插件作者回传', '只选择允许分析的项目目录'],
       ['模型语义增强', 'DSH 提供可用默认模型时', '仅把仓库证据摘要（模块/依赖/路由/配置/指标，不含完整源码）交给 DSH 的模型服务', '不配置模型即回退纯静态分析；模型调用由 DSH 统一管控'],
       ['独立运行模式直连模型', '不使用 DSH、单独 npm start 并配置 Base URL+API Key', '请求发往用户自己配置的地址', '插件安装场景不涉及；内网可按第 06 节在网络层封禁'],
       ['本机 HTTP 服务', '仅独立运行模式（插件模式不监听端口）', '监听 127.0.0.1，无对外暴露', '插件安装场景不涉及'],
@@ -601,7 +601,7 @@ ${table(
 ${table(
     ['项目', '要求'],
     [
-      ['Node.js', '^22.19.0 || >=24.0.0（使用内置 node:sqlite）'],
+      ['Node.js', '^22.19.0 || >=24.0.0（使用本地 JSON 存储）'],
       ['DSH', '>=0.2.0-rc.2 <0.3.0-0（实测 0.2.0-rc.2 / 0.2.1-rc.2）'],
       ['git', '本机安装 git，用于克隆被观测仓库'],
     ],
@@ -653,7 +653,7 @@ function renderStaticScan(data) {
 - 扫描对象：分发包内的插件源码（payload/dsh-arcvista/**，即实际安装到 DSH 的内容）与安装器脚本（install.mjs / .sh / .command / .bat / .ps1）；
 - 扫描方式：逐行正则匹配，规则表见下；原始命中逐条写入 evidence/scan-*.txt；
 - 判定原则：宁可多报，不隐藏命中；每处命中给出性质判定，评审可据代码片段自行复核；
-- 误报处理：子进程类扫描排除 RegExp.prototype.exec / SQLite db.exec 等非进程 API（用负向后顾排除 xxx.exec(），仅统计真实进程/命令调用；安装器脚本中的 spawnSync 仅用于调用本机 dsh CLI；
+- 误报处理：子进程类扫描排除 RegExp.prototype.exec / JSON 存储等非进程 API（用负向后顾排除 xxx.exec(），仅统计真实进程/命令调用；安装器脚本中的 spawnSync 仅用于调用本机 dsh CLI；
 - 本材料由 \`scripts/build-security-review.mjs\` 从实际分发包采集生成，重新运行即可复现（npm run package:security-review）。
 
 ## 结果总览
@@ -701,17 +701,20 @@ function renderBoundary(data) {
 
 | 路径 | 用途 | 权限/说明 |
 | --- | --- | --- |
-| ~/.dsh/arcvista/arcvista.db | 产品、快照、设置（SQLite） | 用户目录，数据库文件权限 600 |
+| ~/.dsh/arcvista/projects.json | 项目列表 | 全局插件目录，权限 600 |
+| ~/.dsh/arcvista/jobs.json | 任务与日志 | 全局插件目录，权限 600 |
+| ~/.dsh/arcvista/settings.json | 本地设置 | 全局插件目录，权限 600 |
+| <project>/.arcvista/ | 分析快照、下钻缓存 | 项目内的分析产出 |
 | ~/.dsh/arcvista/repos/ | 被观测仓库的 bare mirror | 可随时删除，重新分析自动重建 |
 | ~/.dsh/arcvista/worktrees/ | 按提交检出的临时工作区 | 分析完成后只保留最近使用的 |
-| ~/.dsh/arcvista/backups/ | SQLite 自动备份（默认 12 份，权限 600） | 只备份数据库，不重复备份仓库镜像 |
+| ~/.dsh/arcvista/backups/ | 全局 JSON 自动备份（默认 12 份，权限 600） | 不备份项目内快照 |
 | ~/.dsh/profiles/<profile>/ | 安装位置与离线 tarball | 卸载时移除，旧版备份保留在 .dsh-offline-plugins/backups/ |
 
 ## 运行期网络边界
 
 | 能力 | 触发条件 | 数据内容 | 是否为 DSH 插件模式默认行为 |
 | --- | --- | --- | --- |
-| 调用本机 git 克隆/拉取/检出 | 用户创建产品并分析仓库 | 访问用户填写的仓库地址；仓库内容留在本机 | 是（任务必需） |
+| 调用本机 git 读取本地项目 | 用户选择目录并分析 | 只读本机 Git 元数据，不联网 | 是（可选，非 Git 目录不调用） |
 | 模型语义增强 | DSH 提供可用默认模型时 | 仅发送仓库证据摘要（模块、依赖、路由、配置、指标），**不含完整源码** | 是（无模型时自动回退纯静态分析） |
 | 直连 OpenAI 兼容模型 | 仅独立运行模式且用户显式配置 Base URL + API Key | 用户配置的模型服务 | **否**（插件模式不启用，设置写入/测试接口被 DSH 托管短路） |
 | 本机 HTTP 监听 | 仅独立运行模式（npm start，默认 127.0.0.1:4321） | 仅本机可访问 | **否**（插件模式由 DSH webServer 挂载 /arcvista，不监听端口） |
@@ -728,7 +731,7 @@ function renderBoundary(data) {
 1. 分析对象限定为内网可达仓库；
 2. 若不允许把仓库摘要交给模型，可不给 DSH 配置模型，或让 DSH 侧禁用模型；
 3. 如需完全离线，可在主机防火墙层禁止该进程访问外部地址，静态分析功能不受影响（仅失去语义增强）；
-4. 仓库镜像与数据库都在本机用户目录，可直接删除或用备份恢复。
+4. 项目列表与任务在 ~/.dsh/arcvista，分析快照在项目自己的 .arcvista，可直接删除或用备份恢复全局状态。
 `;
 }
 
@@ -895,7 +898,7 @@ function renderApprovalTemplate(data) {
 
 - 安装仅影响当前 DSH profile 目录，卸载命令可精确移除插件、依赖与 bundle 注册；
 - 旧版安装前自动备份到 profile/.dsh-offline-plugins/backups/，可原样恢复；
-- 运行数据（SQLite、仓库镜像、备份）在 ~/.dsh/arcvista，可单独删除；
+- 项目列表与全局备份在 ~/.dsh/arcvista，分析快照在项目自己的 .arcvista，可单独删除；
 - 如需立即停用：执行 \`node install.mjs --uninstall\` 后重启 DSH。
 
 ### 六、承诺
