@@ -109,11 +109,28 @@ function pathName(value) {
 
 async function createModal(navigate) {
   let workspaces = [];
+  let hostVersion = '';
   try {
-    workspaces = (await api.workspaces()).workspaces || [];
+    const [workspaceData, health] = await Promise.all([
+      api.workspaces().catch(() => ({ workspaces: [] })),
+      api.health().catch(() => null),
+    ]);
+    workspaces = workspaceData.workspaces || [];
+    hostVersion = health?.version || '';
   } catch {
     workspaces = [];
   }
+  const versionParts = (value) => String(value || '').replace(/^v/, '').split('.').map((part) => Number.parseInt(part, 10) || 0);
+  const atLeast = (value, minimum) => {
+    const left = versionParts(value);
+    const right = versionParts(minimum);
+    for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
+      if ((left[index] || 0) > (right[index] || 0)) return true;
+      if ((left[index] || 0) < (right[index] || 0)) return false;
+    }
+    return true;
+  };
+  const gitImportSupported = atLeast(hostVersion, '0.3.0');
   const workspaceOptions = workspaces
     .map((workspace) => `<option value="${esc(workspace.path)}" data-title="${esc(workspace.title || '')}">${esc(workspace.title || workspace.path)} — ${esc(workspace.path)}</option>`)
     .join('');
@@ -128,9 +145,11 @@ async function createModal(navigate) {
         <label>接入方式</label>
         <div class="row" id="np-modes" style="gap:8px;flex-wrap:wrap">
           <button type="button" class="btn btn--sm btn--primary" data-mode="local">本地项目</button>
+          ${gitImportSupported ? `
           <button type="button" class="btn btn--sm" data-mode="git">Git 仓库</button>
-          <button type="button" class="btn btn--sm" data-mode="batch">批量 Git</button>
+          <button type="button" class="btn btn--sm" data-mode="batch">批量 Git</button>` : ''}
         </div>
+        ${gitImportSupported ? '' : `<div class="help" style="margin-top:8px">Git 导入需要 ArcVista Host 0.3.0；当前运行 ${esc(hostVersion || '旧版本')}，重启 DSH 后可用。</div>`}
       </div>
       <div class="field" id="np-name-field">
         <label for="np-name">项目名称（可选）</label>
