@@ -49,6 +49,20 @@
       "skipFiles": [
         "<node_internals>/**"
       ]
+    },
+    {
+      "name": "打包 TGZ",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/package-tgz.mjs",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "runtimeArgs": [
+        "--disable-warning=ExperimentalWarning"
+      ],
+      "skipFiles": [
+        "<node_internals>/**"
+      ]
     }
   ]
 }

@@ -174,7 +174,12 @@ async function createModal(navigate) {
             close();
             navigate(`/p/${result.product.id}`);
           } catch (error) {
-            toast('创建失败', { type: 'error', detail: error.message });
+            toast('创建失败', {
+              type: 'error',
+              detail: /Git 仓库地址不能为空/.test(error.message)
+                ? '当前仍是旧版 Host，请重启 DSH 加载 ArcVista 0.2.2 后再创建本地项目'
+                : error.message,
+            });
             return false;
           }
           return true;
