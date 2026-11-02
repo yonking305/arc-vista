@@ -49,7 +49,7 @@ function cardHTML(product) {
       running
         ? `<div class="product-job">
             <div class="spread">
-              <span class="mono" style="color:var(--amber);font-size:10px;letter-spacing:.1em">本地项目分析</span>
+              <span class="mono" style="color:var(--amber);font-size:10px;letter-spacing:.1em">${job.kind === 'clone' ? '克隆并分析' : '本地项目分析'}</span>
               <span class="mono faint">${job.progress || 0}%</span>
             </div>
             <div class="help mt-8" style="font-size:10.5px">${esc(job.message || '进行中')}</div>
@@ -60,7 +60,7 @@ function cardHTML(product) {
           ? `<div class="product-job">
               <div class="banner banner--red" style="padding:9px 12px;font-size:11px;line-height:1.6">${esc(job.error || '任务失败')}</div>
               ${/超时|网络|无法访问|连接|timeout/i.test(job.error || '') ? '<div class="help mt-8" style="font-size:10.5px">检查本地目录是否仍存在，然后重试分析。</div>' : ''}
-              <button class="btn btn--sm mt-8" data-action="analyze">重试分析 ${icon('refresh', 12)}</button>
+              <button class="btn btn--sm mt-8" data-action="${job.kind === 'clone' ? 'clone' : 'analyze'}">${job.kind === 'clone' ? '重试克隆' : '重试分析'} ${icon('refresh', 12)}</button>
             </div>`
           : latest
             ? `<div class="product-rings">
@@ -114,32 +114,56 @@ async function createModal(navigate) {
   } catch {
     workspaces = [];
   }
+  const workspaceOptions = workspaces
+    .map((workspace) => `<option value="${esc(workspace.path)}" data-title="${esc(workspace.title || '')}">${esc(workspace.title || workspace.path)} — ${esc(workspace.path)}</option>`)
+    .join('');
+
   openModal({
-    eyebrow: 'NEW LOCAL PROJECT',
-    title: '接入本地项目',
-    width: '600px',
+    eyebrow: 'NEW PROJECT',
+    title: '接入项目',
+    width: '640px',
     closeOnBackdrop: false,
     body: `
       <div class="field">
-        <label for="np-name">产品名称</label>
-        <input class="input" id="np-name" placeholder="例如：CloudMall 云商城" maxlength="60" />
-      </div>
-      ${workspaces.length ? `<div class="field">
-        <label for="np-workspace">从 DSH 工作区选择</label>
-        <select class="input" id="np-workspace">
-          <option value="">手动填写本地目录</option>
-          ${workspaces.map((workspace) => `<option value="${esc(workspace.path)}" data-title="${esc(workspace.title || '')}">${esc(workspace.title || workspace.path)} — ${esc(workspace.path)}</option>`).join('')}
-        </select>
-        <div class="help">直接复用 DeepSeek Harness 已登记的工作区目录。</div>
-      </div>` : ''}
-      <div class="field">
-        <label for="np-path">本地项目目录</label>
-        <div class="row" style="gap:8px">
-          <input class="input" id="np-path" placeholder="/Users/you/projects/my-app" />
-          <button class="btn" id="np-pick" type="button" style="flex:none">选择文件夹</button>
+        <label>接入方式</label>
+        <div class="row" id="np-modes" style="gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn btn--sm btn--primary" data-mode="local">本地项目</button>
+          <button type="button" class="btn btn--sm" data-mode="git">Git 仓库</button>
+          <button type="button" class="btn btn--sm" data-mode="batch">批量 Git</button>
         </div>
-        <div id="np-browse" style="display:none;margin-top:10px;border:1px solid var(--border);border-radius:10px;padding:10px;max-height:260px;overflow:auto"></div>
-        <div class="help">填写绝对路径，或从系统/DSH 文件夹选择器选择。ArcVista 直接分析当前工作区，不克隆、不拉取、不切换分支；分析产出写入项目内的 <span class="mono">.arcvista/</span>。</div>
+      </div>
+      <div class="field" id="np-name-field">
+        <label for="np-name">项目名称（可选）</label>
+        <input class="input" id="np-name" placeholder="留空时使用目录名或仓库名" maxlength="60" />
+      </div>
+      <div id="np-local-panel">
+        <div class="field">
+          <label for="np-path">本地项目目录</label>
+          <div class="row" style="gap:8px">
+            <input class="input" id="np-path" placeholder="/Users/you/projects/my-app" />
+            <button class="btn" id="np-pick" type="button" style="flex:none">选择文件夹</button>
+          </div>
+          <div id="np-browse" style="display:none;margin-top:10px;border:1px solid var(--border);border-radius:10px;padding:10px;max-height:260px;overflow:auto"></div>
+          <div class="help">填写绝对路径，或从系统/DSH 文件夹选择器选择。ArcVista 直接分析当前工作区，不克隆、不拉取、不切换分支；分析产出写入项目内的 <span class="mono">.arcvista/</span>。</div>
+        </div>
+      </div>
+      <div id="np-remote-panel" style="display:none">
+        <div class="field">
+          <label for="np-workspace">克隆到工作空间</label>
+          ${workspaces.length
+            ? `<select class="input" id="np-workspace">${workspaceOptions}</select>
+               <input class="input mt-8" id="np-workspace-path" placeholder="或手动输入工作空间绝对路径" />`
+            : `<input class="input" id="np-workspace-path" placeholder="/Users/you/workspaces" />`}
+          <div class="help">Git 仓库会 clone 到这个工作空间下，目录名取自仓库名。多个仓库会分别生成项目。</div>
+        </div>
+        <div class="field" id="np-single-field">
+          <label for="np-git-url">Git 地址</label>
+          <input class="input" id="np-git-url" placeholder="https://github.com/org/repo.git" />
+        </div>
+        <div class="field" id="np-batch-field" style="display:none">
+          <label for="np-git-urls">Git 地址列表</label>
+          <textarea class="input" id="np-git-urls" rows="5" placeholder="每行一个 Git 地址"></textarea>
+        </div>
       </div>
       <div class="field">
         <label for="np-desc">一句话描述（可选）</label>
@@ -147,39 +171,73 @@ async function createModal(navigate) {
       </div>
       <div class="banner">
         <span>${icon('pulse', 16)}</span>
-        <div>创建后立即分析当前工作区，项目列表记录在 ArcVista 全局数据目录，快照与下钻结果写入项目内的 <span class="mono">.arcvista/</span>。模型由 DSH 统一提供。</div>
+        <div id="np-mode-hint">创建后立即分析当前工作区，项目列表记录在 ArcVista 全局数据目录，快照与下钻结果写入项目内的 <span class="mono">.arcvista/</span>。模型由 DSH 统一提供。</div>
       </div>`,
     actions: [
       { label: '取消' },
       {
-        label: '创建并开始分析',
+        label: '创建项目',
         primary: true,
         onClick: async (close, modal) => {
-          const name = modal.querySelector('#np-name').value.trim() || pathName(modal.querySelector('#np-path').value);
-          const projectPath = modal.querySelector('#np-path').value.trim();
+          const mode = modal.dataset.mode || 'local';
           const description = modal.querySelector('#np-desc').value.trim();
-          if (!name) {
-            toast('请填写产品名称', { type: 'warn' });
-            modal.querySelector('#np-name').focus();
+          if (mode === 'local') {
+            const projectPath = modal.querySelector('#np-path').value.trim();
+            const name = modal.querySelector('#np-name').value.trim() || pathName(projectPath);
+            if (!name) {
+              toast('请填写项目名称', { type: 'warn' });
+              modal.querySelector('#np-name').focus();
+              return false;
+            }
+            if (!projectPath) {
+              toast('请填写本地项目目录', { type: 'warn' });
+              modal.querySelector('#np-path').focus();
+              return false;
+            }
+            try {
+              const result = await api.products.create({ name, path: projectPath, description });
+              toast('项目已创建，正在分析当前工作区', { detail: '快照会写入项目内的 .arcvista/' });
+              close();
+              navigate(`/p/${result.product.id}`);
+            } catch (error) {
+              toast('创建失败', {
+                type: 'error',
+                detail: /Git 仓库地址不能为空/.test(error.message)
+                  ? '当前仍是旧版 Host，请重启 DSH 加载 ArcVista 0.2.x 后再创建项目'
+                  : error.message,
+              });
+              return false;
+            }
+            return true;
+          }
+
+          const workspace =
+            modal.querySelector('#np-workspace-path')?.value.trim() ||
+            modal.querySelector('#np-workspace')?.value.trim() ||
+            '';
+          const urls = mode === 'batch'
+            ? (modal.querySelector('#np-git-urls').value || '').split(/\s*\n\s*/).map((item) => item.trim()).filter(Boolean)
+            : [modal.querySelector('#np-git-url').value.trim()].filter(Boolean);
+          if (!workspace) {
+            toast('请选择或填写工作空间', { type: 'warn' });
             return false;
           }
-          if (!projectPath) {
-            toast('请填写本地项目目录', { type: 'warn' });
-            modal.querySelector('#np-path').focus();
+          if (urls.length === 0) {
+            toast('请填写 Git 地址', { type: 'warn' });
             return false;
           }
           try {
-            const result = await api.products.create({ name, path: projectPath, description });
-            toast('项目已创建，正在分析当前工作区', { detail: '快照会写入项目内的 .arcvista/' });
+            const result = await api.products.import({ workspace, urls, description });
+            const count = result.projects?.length || urls.length;
+            toast(`已开始克隆 ${count} 个仓库`, { detail: '克隆完成后会自动分析当前工作区' });
             close();
-            navigate(`/p/${result.product.id}`);
+            if (result.projects?.[0]?.product?.id) {
+              navigate(`/p/${result.projects[0].product.id}`);
+            } else {
+              navigate('/');
+            }
           } catch (error) {
-            toast('创建失败', {
-              type: 'error',
-              detail: /Git 仓库地址不能为空/.test(error.message)
-                ? '当前仍是旧版 Host，请重启 DSH 加载 ArcVista 0.2.2 后再创建本地项目'
-                : error.message,
-            });
+            toast('导入失败', { type: 'error', detail: error.message });
             return false;
           }
           return true;
@@ -187,30 +245,31 @@ async function createModal(navigate) {
       },
     ],
     onMount: (modal) => {
+      modal.dataset.mode = 'local';
       const pathInput = modal.querySelector('#np-path');
       const nameInput = modal.querySelector('#np-name');
+      const pickButton = modal.querySelector('#np-pick');
+      const browseBox = modal.querySelector('#np-browse');
       const workspaceSelect = modal.querySelector('#np-workspace');
-      workspaceSelect?.addEventListener('change', () => {
-        if (!workspaceSelect.value) return;
-        pathInput.value = workspaceSelect.value;
-        const title = workspaceSelect.selectedOptions[0]?.dataset.title;
-        if (!nameInput.value.trim() && title) nameInput.value = title;
-        pathInput.focus();
-      });
-      pathInput.addEventListener('blur', () => {
-        if (!nameInput.value.trim()) nameInput.value = pathName(pathInput.value);
-      });
+      const workspacePath = modal.querySelector('#np-workspace-path');
+      const hint = modal.querySelector('#np-mode-hint');
 
       const choosePath = (selected) => {
         if (!selected) return;
         pathInput.value = selected;
         if (!nameInput.value.trim()) nameInput.value = pathName(selected);
-        const browse = modal.querySelector('#np-browse');
-        if (browse) browse.style.display = 'none';
+        browseBox.style.display = 'none';
       };
 
-      const pickButton = modal.querySelector('#np-pick');
-      const browseBox = modal.querySelector('#np-browse');
+      workspaceSelect?.addEventListener('change', () => {
+        if (workspaceSelect.value && workspacePath) workspacePath.value = workspaceSelect.value;
+      });
+      if (workspaceSelect?.value && workspacePath) workspacePath.value = workspaceSelect.value;
+
+      pathInput.addEventListener('blur', () => {
+        if (!nameInput.value.trim()) nameInput.value = pathName(pathInput.value);
+      });
+
       async function renderBrowser(directoryPath) {
         browseBox.style.display = 'block';
         browseBox.innerHTML = '<div class="help">正在读取目录…</div>';
@@ -269,8 +328,31 @@ async function createModal(navigate) {
           pickButton.style.display = 'none';
         });
 
+      const setMode = (mode) => {
+        modal.dataset.mode = mode;
+        modal.querySelectorAll('#np-modes [data-mode]').forEach((button) => {
+          button.classList.toggle('btn--primary', button.dataset.mode === mode);
+        });
+        const local = mode === 'local';
+        modal.querySelector('#np-local-panel').style.display = local ? '' : 'none';
+        modal.querySelector('#np-remote-panel').style.display = local ? 'none' : '';
+        modal.querySelector('#np-name-field').style.display = local ? '' : 'none';
+        modal.querySelector('#np-single-field').style.display = mode === 'git' ? '' : 'none';
+        modal.querySelector('#np-batch-field').style.display = mode === 'batch' ? '' : 'none';
+        hint.innerHTML = local
+          ? '创建后立即分析当前工作区，项目列表记录在 ArcVista 全局数据目录，快照与下钻结果写入项目内的 <span class="mono">.arcvista/</span>。模型由 DSH 统一提供。'
+          : mode === 'batch'
+            ? '会把这些仓库逐个 clone 到所选工作空间，再分别分析当前工作区。目标目录已存在时不会覆盖。'
+            : '会把这个仓库 clone 到所选工作空间，再分析当前工作区。目标目录已存在时不会覆盖。';
+        const primary = modal.querySelector('.modal-foot .btn--primary');
+        if (primary) primary.textContent = local ? '创建项目' : '克隆并分析';
+      };
+      modal.querySelectorAll('#np-modes [data-mode]').forEach((button) => {
+        button.addEventListener('click', () => setMode(button.dataset.mode));
+      });
+      setMode('local');
       nameInput.focus();
-      modal.querySelector('[data-close-modal]')?.addEventListener('click', (event) => {
+      modal.querySelector('[data-close]')?.addEventListener('click', (event) => {
         event.preventDefault();
         modal.closest('.modal-backdrop').remove();
         navigate('/settings');
@@ -287,11 +369,11 @@ export async function renderProducts(main, ctx) {
         <div>
           <div class="eyebrow">ARCVISTA · 架构观测台</div>
           <h1 class="page-title">把系统放上<em>观测台</em></h1>
-          <p class="page-sub">接入任意本地项目目录，自动生成可下钻的系统架构图、安全架构守护清单、业务知识图谱、复杂度与测试覆盖度，并对比不同快照之间的架构漂移与风险。</p>
+          <p class="page-sub">接入本地项目，或从 Git 克隆到工作空间，自动生成可下钻的系统架构图、安全架构守护清单、业务知识图谱、复杂度与测试覆盖度，并对比不同快照之间的架构漂移与风险。</p>
         </div>
         <div class="masthead-right">
           <div class="masthead-meta">LOCAL-FIRST · JSON<br/><b>数据只保存在这台机器</b></div>
-          <button class="btn btn--primary" id="create-product">${icon('plus', 15)} 新建观测目标</button>
+          <button class="btn btn--primary" id="create-product">${icon('plus', 15)} 新建项目</button>
         </div>
       </header>
       <section id="products-hero"></section>
@@ -318,9 +400,9 @@ export async function renderProducts(main, ctx) {
           <div class="panel-body" style="padding:46px 40px">
             <div class="eyebrow">NO TARGETS YET</div>
             <h2 style="font-family:var(--font-display);font-size:32px;font-weight:600;margin:14px 0 10px">先接入一个需要被看懂的系统</h2>
-            <p class="page-sub" style="margin-bottom:24px">选择一个本地目录即可开始。ArcVista 直接读取当前工作区，静态解析模块、依赖、路由、安全配置与测试，再绘制成可交互的架构看板。不会修改你的源码，分析产出写入项目内的 .arcvista/。</p>
+            <p class="page-sub" style="margin-bottom:24px">选择本地目录，或填写 Git 地址克隆到工作空间即可开始。ArcVista 读取当前工作区，静态解析模块、依赖、路由、安全配置与测试，再绘制成可交互的架构看板。不会修改你的源码，分析产出写入项目内的 .arcvista/。</p>
             <div class="row row--wrap" style="gap:10px">
-              <button class="btn btn--primary" data-action="create">${icon('plus', 15)} 接入第一个本地项目</button>
+              <button class="btn btn--primary" data-action="create">${icon('plus', 15)} 接入第一个项目</button>
               <span class="mono faint" style="font-size:10.5px">示例本地路径：${esc(SAMPLE_REPO)}</span>
             </div>
             <div class="grid grid--3 mt-24" style="gap:14px">
@@ -390,6 +472,19 @@ export async function renderProducts(main, ctx) {
       toast('已删除观测目标');
     } catch (error) {
       toast('删除失败', { type: 'error', detail: error.message });
+    }
+  });
+
+  delegate(grid, '[data-action="clone"]', 'click', async (event, button) => {
+    event.stopPropagation();
+    button.disabled = true;
+    try {
+      await api.products.clone(button.closest('.product-card').dataset.id);
+      toast('重新开始克隆');
+      refresh();
+    } catch (error) {
+      toast('无法重新克隆', { type: 'error', detail: error.message });
+      button.disabled = false;
     }
   });
 

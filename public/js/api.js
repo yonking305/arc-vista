@@ -37,6 +37,8 @@ export const api = {
   products: {
     list: () => request('/api/products'),
     create: (payload) => request('/api/products', { method: 'POST', body: JSON.stringify(payload) }),
+    import: (payload) => request('/api/products/import', { method: 'POST', body: JSON.stringify(payload) }),
+    clone: (id) => request(`/api/products/${encodeURIComponent(id)}/clone`, { method: 'POST', body: '{}' }),
     get: (id) => request(`/api/products/${encodeURIComponent(id)}`),
     update: (id, payload) => request(`/api/products/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(payload) }),
     remove: (id) => request(`/api/products/${encodeURIComponent(id)}`, { method: 'DELETE' }),

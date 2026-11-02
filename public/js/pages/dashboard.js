@@ -43,7 +43,7 @@ function toneColor(tone) {
   return { good: 'var(--teal)', warn: 'var(--amber)', bad: 'var(--red)', na: 'var(--text-faint)' }[tone] || 'var(--text-faint)';
 }
 
-const JOB_KIND_LABEL = { prepare: '准备目录', analyze: '本地项目分析', drill: '模块下钻' };
+const JOB_KIND_LABEL = { prepare: '准备目录', clone: '克隆并分析', analyze: '本地项目分析', drill: '模块下钻' };
 
 function jobKindLabel(job) {
   return JOB_KIND_LABEL[job.kind] || '任务';
@@ -57,7 +57,7 @@ function jobElapsedSeconds(job) {
 function jobCardHTML(job) {
   const running = job.status === 'running';
   const queued = job.status === 'queued';
-  const label = job.kind === 'prepare' ? '准备目录' : job.kind === 'analyze' ? '本地项目分析' : '任务';
+  const label = job.kind === 'prepare' ? '准备目录' : job.kind === 'clone' ? '克隆并分析' : job.kind === 'analyze' ? '本地项目分析' : '任务';
   const logs = (job.logs || []).slice(-3);
   const indeterminate = running && job.kind === 'prepare' && (job.progress || 0) < 8;
   const statusText = queued ? '排队中' : running ? '进行中' : job.status === 'done' ? '已完成' : '失败';

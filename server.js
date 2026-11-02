@@ -3,7 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { openStore } from './lib/store.js';
-import { inspectProject, listBranches } from './lib/local-git.js';
+import { inspectProject, listBranches, cloneInto, repoDirectoryName } from './lib/local-git.js';
 import { Router, createServer, badRequest, notFound, readJsonBody } from './lib/http.js';
 import { JobRunner } from './lib/jobs.js';
 import { resolveLlmConfig, maskKey, testConnection } from './lib/llm.js';
@@ -154,6 +154,35 @@ function startAnalyzeJob(product, { force = false } = {}) {
         store,
         product: fresh,
         force,
+        llm: effectiveLlmConfig(),
+        log: ctx.log,
+        progress: ctx.progress,
+      });
+    },
+  });
+}
+
+function startCloneJob(product, gitUrl) {
+  return jobs.start({
+    productId: product.id,
+    kind: 'clone',
+    branch: null,
+    run: async (ctx) => {
+      const fresh = store.products.get(product.id);
+      if (!fresh) throw new Error('项目已被删除');
+      await cloneInto({
+        url: gitUrl,
+        target: fresh.path,
+        log: ctx.log,
+        progress: ctx.progress,
+      });
+      store.products.ensureArtifacts(fresh.id);
+      const info = await inspectProject(fresh.path);
+      if (info.branch) store.products.update(fresh.id, { defaultBranch: info.branch });
+      ctx.log(`克隆完成，开始分析 ${info.branch || '当前工作区'}`);
+      return analyzeRepository({
+        store,
+        product: store.products.get(fresh.id),
         llm: effectiveLlmConfig(),
         log: ctx.log,
         progress: ctx.progress,
@@ -399,6 +428,78 @@ router.post('/api/products', async ({ req }) => {
   return { product: productCard({ ...product, defaultBranch: info?.branch || '' }), job };
 });
 
+function validateGitUrl(value) {
+  const url = String(value || '').trim();
+  if (!url) throw badRequest('Git 地址不能为空');
+  if (!/^(https?:\/\/|ssh:\/\/|git:\/\/|git@|file:\/\/)/i.test(url)) {
+    throw badRequest(`不支持的 Git 地址：${url}`);
+  }
+  return url;
+}
+
+function uniqueProjectName(base) {
+  let name = String(base || 'git-project').slice(0, 60);
+  let suffix = 2;
+  while (store.products.findByName(name)) {
+    name = `${String(base).slice(0, 54)}-${suffix}`;
+    suffix += 1;
+  }
+  return name;
+}
+
+router.post('/api/products/import', async ({ req }) => {
+  const body = await readJsonBody(req);
+  const workspace = validateProjectPath(body.workspace);
+  const rawUrls = Array.isArray(body.urls) ? body.urls : body.url ? [body.url] : [];
+  const urls = [...new Set(rawUrls.map(validateGitUrl))];
+  if (urls.length === 0) throw badRequest('至少填写一个 Git 地址');
+  if (urls.length > 10) throw badRequest('一次最多导入 10 个 Git 仓库');
+  const description = String(body.description || '').slice(0, 300);
+
+  const plans = [];
+  const seenTargets = new Set();
+  for (const url of urls) {
+    const directory = repoDirectoryName(url);
+    const target = path.resolve(workspace, directory);
+    const relative = path.relative(workspace, target);
+    if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) {
+      throw badRequest(`无法从地址推导安全目录：${url}`);
+    }
+    if (seenTargets.has(target)) throw badRequest(`多个地址指向同一目录：${directory}`);
+    seenTargets.add(target);
+    if (store.products.findByPath(target)) throw badRequest(`目录已被 ArcVista 项目占用：${target}`);
+    if (fs.existsSync(target)) {
+      let entries = [];
+      try {
+        entries = fs.readdirSync(target);
+      } catch {
+        throw badRequest(`目标目录不可读：${target}`);
+      }
+      if (entries.length > 0) throw badRequest(`目标目录已存在且非空：${target}`);
+    }
+    plans.push({ url, target, name: uniqueProjectName(directory) });
+  }
+
+  const created = [];
+  for (const plan of plans) {
+    const product = store.products.create({
+      name: plan.name,
+      path: plan.target,
+      description,
+      sourceUrl: plan.url,
+      deferArtifacts: true,
+    });
+    const job = startCloneJob(product, plan.url);
+    created.push({
+      product: productCard(product),
+      job,
+      url: plan.url,
+      path: plan.target,
+    });
+  }
+  return { projects: created };
+});
+
 router.get('/api/products/:id', async ({ params }) => {
   const product = requireProduct(params.id);
   const projectPath = product.path;
@@ -468,6 +569,22 @@ router.delete('/api/products/:id', async ({ params }) => {
 router.post('/api/products/:id/prepare', async ({ params }) => {
   const product = requireProduct(params.id);
   const job = startAnalyzeJob(product);
+  return { job };
+});
+
+router.post('/api/products/:id/clone', async ({ params }) => {
+  const product = requireProduct(params.id);
+  if (!product.sourceUrl) throw badRequest('这个项目没有关联的 Git 地址');
+  if (fs.existsSync(product.path)) {
+    let entries = [];
+    try {
+      entries = fs.readdirSync(product.path);
+    } catch {
+      entries = [];
+    }
+    if (entries.length > 0) throw badRequest(`目标目录已存在且非空：${product.path}`);
+  }
+  const job = startCloneJob(product, product.sourceUrl);
   return { job };
 });
 

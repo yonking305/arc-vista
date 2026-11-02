@@ -20,7 +20,7 @@ import { analyzeRepository } from '../lib/analyze/index.js';
 import { JobRunner } from '../lib/jobs.js';
 import { chatJson } from '../lib/llm.js';
 import { createArcVistaApp } from '../server.js';
-import { inspectProject } from '../lib/local-git.js';
+import { inspectProject, repoDirectoryName } from '../lib/local-git.js';
 
 const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'arcvista-test-'));
 
@@ -175,6 +175,27 @@ test('extractJson tolerates fences and prose', () => {
   assert.equal(extractJson('{"broken": '), null);
 });
 
+
+test('Git import derives safe names and defers project artifacts', () => {
+  assert.equal(repoDirectoryName('https://github.com/acme/my-shop.git'), 'my-shop');
+  assert.equal(repoDirectoryName('git@github.com:acme/my-shop.git'), 'my-shop');
+  assert.equal(repoDirectoryName('https://github.com/acme/../weird.git'), 'weird');
+
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'arcvista-defer-'));
+  const dataDir = path.join(root, 'data');
+  const target = path.join(root, 'workspace', 'my-shop');
+  const store = openStore(dataDir);
+  const project = store.products.create({
+    name: 'deferred',
+    path: target,
+    sourceUrl: 'https://github.com/acme/my-shop.git',
+    deferArtifacts: true,
+  });
+  assert.equal(fs.existsSync(path.join(target, '.arcvista')), false);
+  store.products.ensureArtifacts(project.id);
+  assert.equal(fs.existsSync(path.join(target, '.arcvista', 'project.json')), true);
+  store.close();
+});
 
 test('JSON store persists global projects and per-project snapshots', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'arcvista-json-store-'));
