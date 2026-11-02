@@ -20,7 +20,7 @@ import { analyzeRepository } from '../lib/analyze/index.js';
 import { JobRunner } from '../lib/jobs.js';
 import { chatJson } from '../lib/llm.js';
 import { createArcVistaApp } from '../server.js';
-import { inspectProject, repoDirectoryName } from '../lib/local-git.js';
+import { inspectProject, repoDirectoryName, classifyCloneFailure } from '../lib/local-git.js';
 
 const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'arcvista-test-'));
 
@@ -195,6 +195,14 @@ test('Git import derives safe names and defers project artifacts', () => {
   store.products.ensureArtifacts(project.id);
   assert.equal(fs.existsSync(path.join(target, '.arcvista', 'project.json')), true);
   store.close();
+});
+
+test('clone failures become actionable auth/network messages', () => {
+  assert.match(classifyCloneFailure('Permission denied (publickey)').message, /认证\/权限/);
+  assert.match(classifyCloneFailure('fatal: Authentication failed for https://example.com/repo').message, /认证\/权限/);
+  assert.match(classifyCloneFailure('fatal: unable to access ... Could not resolve host: example.com').message, /无法连接/);
+  assert.match(classifyCloneFailure('remote: Repository not found.').message, /仓库不存在/);
+  assert.match(classifyCloneFailure('Host key verification failed.').message, /主机密钥/);
 });
 
 test('JSON store persists global projects and per-project snapshots', () => {
