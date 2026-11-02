@@ -50,8 +50,8 @@ function scan(dir, depth = 0) {
 scan(root);
 
 if (errors.length) {
-  console.error('package check failed:');
+  console.error('包检查失败：');
   for (const error of errors) console.error(' -', error);
   process.exit(1);
 }
-console.log('package check passed: dsh-arcvista is self-contained, data-free and publishable.');
+console.log('包检查通过：dsh-arcvista 自包含、不含运行时数据，可发布。');

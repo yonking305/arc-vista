@@ -48,7 +48,8 @@
       ],
       "skipFiles": [
         "<node_internals>/**"
-      ]
+      ],
+      "noDebug": true
     },
     {
       "name": "打包 TGZ",
@@ -62,7 +63,8 @@
       ],
       "skipFiles": [
         "<node_internals>/**"
-      ]
+      ],
+      "noDebug": true
     }
   ]
 }

@@ -52,6 +52,16 @@ const otp = valueOf('--otp');
 const bumpKind = has('--major') ? 'major' : has('--minor') ? 'minor' : 'patch';
 const waitMs = Number(valueOf('--wait') || 8 * 60 * 1000);
 
+function childEnv() {
+  const env = { ...process.env };
+  // VS Code's debug adapter injects these into every child; a release must run
+  // the test/build commands as plain Node processes, not nested debuggees.
+  delete env.NODE_OPTIONS;
+  delete env.VSCODE_INSPECTOR_OPTIONS;
+  delete env.VSCODE_DEBUG;
+  return env;
+}
+
 function fail(message) {
   console.error(`\n✗ ${message}\n`);
   process.exit(1);
@@ -62,7 +72,7 @@ function run(command, args, options = {}) {
     cwd: ROOT,
     stdio: options.capture ? ['ignore', 'pipe', 'pipe'] : 'inherit',
     encoding: 'utf8',
-    env: process.env,
+    env: childEnv(),
   });
   if (!options.allowFailure && result.status !== 0) {
     if (options.capture && result.stderr) console.error(result.stderr.trim());
@@ -173,12 +183,12 @@ async function main() {
   const remote = capture(GIT, ['remote', 'get-url', 'origin']).stdout;
   const dirty = capture(GIT, ['status', '--porcelain']).stdout;
 
-  console.log('\nArcVista release');
-  console.log(`  package   ${pkg.name}`);
-  console.log(`  version   ${pkg.version}`);
-  console.log(`  branch    ${branch}`);
-  console.log(`  remote    ${remote || '(none)'}`);
-  console.log(`  bump      ${explicitVersion ? `explicit ${explicitVersion}` : bumpKind}`);
+  console.log('\nArcVista 发布');
+  console.log(`  包名      ${pkg.name}`);
+  console.log(`  当前版本  ${pkg.version}`);
+  console.log(`  分支      ${branch}`);
+  console.log(`  远端      ${remote || '(未配置)'}`);
+  console.log(`  升级方式  ${explicitVersion ? `指定 ${explicitVersion}` : { patch: '补丁', minor: '次版本', major: '主版本' }[bumpKind]}`);
 
   if (!dryRun) {
     if (branch !== 'main') fail(`release must run on main (currently ${branch})`);
@@ -217,7 +227,7 @@ async function main() {
     next = bumpVersion(base, bumpKind);
   }
   const nextVersion = formatVersion(next);
-  console.log(`  next      ${nextVersion}${npmLatest ? ` (npm latest ${npmLatest})` : ''}`);
+  console.log(`  目标版本  ${nextVersion}${npmLatest ? `（npm 最新 ${npmLatest}）` : ''}`);
 
   if (!dryRun) {
     if (capture(GIT, ['tag', '-l', `v${nextVersion}`]).stdout) {
@@ -229,30 +239,30 @@ async function main() {
         'npm is not authenticated. Run `npm login --auth-type=web`, or configure a granular token with publish permission.',
       );
     }
-    console.log(`  npm user  ${whoami.stdout}`);
+    console.log(`  npm 用户  ${whoami.stdout}`);
   }
 
   if (!skipTests) {
-    console.log('\nRunning tests...');
+    console.log('\n正在运行测试…');
     run(NPM, ['test']);
-    console.log('\nChecking publishable package...');
+    console.log('\n正在检查可发布包…');
     run(process.execPath, ['scripts/check-package.mjs']);
   } else {
-    console.log('\nSkipping tests and package check (--skip-tests).');
+    console.log('\n跳过测试和包检查（--skip-tests）。');
   }
 
   if (dryRun) {
-    console.log('\nDry run complete. No files, commits, tags or registry entries were changed.');
+    console.log('\n演练完成：没有修改文件、提交、标签或 npm 记录。');
     return;
   }
 
   if (!yes) {
     if (!process.stdin.isTTY) fail('confirmation needs a TTY; rerun with --yes for non-interactive release.');
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    const answer = await rl.question(`\nPublish ${pkg.name}@${nextVersion}? Type "yes" to continue: `);
+    const answer = await rl.question(`\n确认发布 ${pkg.name}@${nextVersion}？输入 yes 继续：`);
     rl.close();
-    if (answer.trim().toLowerCase() !== 'yes') {
-      console.log('Release cancelled. No changes made.');
+    if (!['yes', 'y', '是'].includes(answer.trim().toLowerCase())) {
+      console.log('已取消发布，没有修改任何文件。');
       return;
     }
   }
@@ -269,20 +279,20 @@ async function main() {
 
   // Only release metadata is committed; unrelated working tree files are never
   // swept into the release commit.
-  console.log('\nCommitting release metadata...');
+  console.log('\n正在提交发布信息…');
   run(GIT, ['add', '--', 'package.json', 'CHANGELOG.md']);
   run(GIT, ['commit', '-m', `chore: release v${nextVersion}`]);
   run(GIT, ['tag', '-a', `v${nextVersion}`, '-m', `ArcVista ${nextVersion}`]);
 
   if (!noPush) {
-    console.log('\nPushing release commit and tag to GitHub...');
+    console.log('\n正在推送发布提交和标签到 GitHub…');
     run(GIT, ['push', 'origin', 'main']);
     run(GIT, ['push', 'origin', `v${nextVersion}`]);
   } else {
-    console.log('\nSkipping git push (--no-push).');
+    console.log('\n跳过 git push（--no-push）。');
   }
 
-  console.log(`\nPublishing ${pkg.name}@${nextVersion} to npm...`);
+  console.log(`\n正在发布 ${pkg.name}@${nextVersion} 到 npm…`);
   const publishArgs = ['publish', '--access', 'public'];
   if (otp) publishArgs.push(`--otp=${otp}`);
   try {
@@ -308,14 +318,14 @@ async function main() {
     }
     process.stdout.write('\n');
     if (!visible) {
-      console.log('npm accepted the publish, but the version is still processing. It should appear shortly.');
+      console.log('npm 已接受发布，但版本仍在处理中，稍后会出现。');
     }
   }
 
-  console.log(`\n✓ Released ${pkg.name}@${nextVersion}`);
-  console.log(`  GitHub: https://github.com/yonking305/arc-vista/releases/tag/v${nextVersion}`);
-  console.log(`  npm:    https://www.npmjs.com/package/${pkg.name}/v/${nextVersion}`);
-  console.log(`  Install: dsh plugin --profile web add ${pkg.name}@${nextVersion}`);
+  console.log(`\n✓ 已发布 ${pkg.name}@${nextVersion}`);
+  console.log(`  GitHub：https://github.com/yonking305/arc-vista/releases/tag/v${nextVersion}`);
+  console.log(`  npm：   https://www.npmjs.com/package/${pkg.name}/v/${nextVersion}`);
+  console.log(`  安装：  dsh plugin --profile web add ${pkg.name}@${nextVersion}`);
 }
 
 main().catch((error) => {

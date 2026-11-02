@@ -33,6 +33,14 @@ const skipTests = has('--skip-tests');
 const outArg = valueOf('--out');
 const outDir = path.resolve(ROOT, outArg || 'dist');
 
+function childEnv() {
+  const env = { ...process.env };
+  delete env.NODE_OPTIONS;
+  delete env.VSCODE_INSPECTOR_OPTIONS;
+  delete env.VSCODE_DEBUG;
+  return env;
+}
+
 function fail(message) {
   console.error(`\n✗ ${message}\n`);
   process.exit(1);
@@ -43,7 +51,7 @@ function run(command, commandArgs, options = {}) {
     cwd: ROOT,
     stdio: options.capture ? ['ignore', 'pipe', 'inherit'] : 'inherit',
     encoding: 'utf8',
-    env: process.env,
+    env: childEnv(),
   });
   if (result.status !== 0) {
     if (options.capture && result.stdout) console.error(result.stdout.trim());
@@ -73,16 +81,16 @@ function main() {
   fs.mkdirSync(outDir, { recursive: true });
 
   if (!skipTests) {
-    console.log('\nRunning tests...');
+    console.log('\n正在运行测试…');
     run(NPM, ['test']);
   } else {
-    console.log('\nSkipping tests (--skip-tests).');
+    console.log('\n跳过测试（--skip-tests）。');
   }
 
-  console.log('\nRunning package check...');
+  console.log('\n正在检查可发布包…');
   run(process.execPath, ['scripts/check-package.mjs']);
 
-  console.log('\nPacking tarball...');
+  console.log('\n正在打包 TGZ…');
   const packed = run(NPM, ['pack', '--json', '--ignore-scripts', '--pack-destination', outDir], { capture: true });
   let result;
   try {
@@ -118,13 +126,13 @@ function main() {
   fs.writeFileSync(manifestFile, `${JSON.stringify(info, null, 2)}\n`, { mode: 0o600 });
 
   console.log(`\n✓ ${base}`);
-  console.log(`  path      ${tarball}`);
-  console.log(`  size      ${(bytes / 1024).toFixed(1)} kB`);
-  console.log(`  sha256    ${hash}`);
-  if (info.dirty) console.log('  warning   working tree is dirty; the tarball includes uncommitted files');
-  console.log('\nInstall locally with:');
+  console.log(`  路径      ${tarball}`);
+  console.log(`  大小      ${(bytes / 1024).toFixed(1)} kB`);
+  console.log(`  SHA256    ${hash}`);
+  if (info.dirty) console.log('  警告      工作区不干净，tarball 会包含未提交的文件');
+  console.log('\n本地安装命令：');
   console.log(`  ${info.installCommand}`);
-  console.log('\nInspect with:');
+  console.log('\n查看内容：');
   console.log(`  tar -tzf ${JSON.stringify(tarball)} | head -30`);
 }
 
