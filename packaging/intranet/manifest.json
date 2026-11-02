@@ -1,0 +1,20 @@
+{
+  "bundle": "arc-vista-intranet-installer",
+  "plugin": "dsh-arcvista",
+  "displayName": "ArcVista 观界",
+  "version": "{{VERSION}}",
+  "createdAt": "{{DATE}}",
+  "offline": true,
+  "sha256": "{{SHA256}}",
+  "tarball": "payload/dsh-arcvista-{{VERSION}}.tgz",
+  "payloadBytes": {{TGZ_SIZE}},
+  "requires": {
+    "node": ">=22.19.0",
+    "dsh": ">=0.2.0-rc.2 <0.3.0-0",
+    "git": ">=2.20.0"
+  },
+  "installTo": "~/.dsh/profiles/<profile>/node_modules/dsh-arcvista",
+  "dataDir": "~/.dsh/arcvista",
+  "network": "none",
+  "notes": "安装器只做本地文件复制与 DSH profile 注册，全程不访问网络。"
+}

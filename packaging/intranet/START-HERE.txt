@@ -1,0 +1,24 @@
+ArcVista 观界 · DSH 插件内网离线安装包
+
+版本：dsh-arcvista {{VERSION}}
+生成日期：{{DATE}}
+SHA-256（tarball）：{{SHA256}}
+
+包含：
+  payload/dsh-arcvista-{{VERSION}}.tgz   离线插件包（可直接用于 pnpm / dsh plugin add）
+  payload/dsh-arcvista/                  解包后的插件文件（安装器实际复制的内容）
+  install.mjs                            安装器（Windows / macOS / Linux 通用）
+  install.bat / install.ps1              Windows 入口
+  install.command / install.sh           macOS / Linux 入口
+
+安装（任选其一，全程离线）：
+  Windows      双击 install.bat
+  macOS        双击 install.command（或终端执行 ./install.sh）
+  任意平台     node install.mjs
+
+前置条件：已安装 DeepSeek Harness 并至少启动过一次；Node.js 22.19+（DSH 自带）。
+
+安装完成后：退出并重启 DSH Web，左侧栏出现「ArcVista 观界」。
+数据保存在 ~/.dsh/arcvista，卸载不会删除。
+
+详细说明、参数、常见问题见 README.md。

@@ -50,6 +50,32 @@ dsh plugin --profile web add dsh-arcvista
 dsh plugin --profile web add /absolute/path/to/arc-vista
 ```
 
+### 内网离线安装
+
+内网（无外网、无 npm registry）环境使用离线安装包，由仓库内的构建脚本生成：
+
+```bash
+npm run package:intranet   # 生成 ../arc-vista-intranet-installer/ 与 ../arc-vista-intranet-installer.zip
+```
+
+把 zip 拷进内网后解压：
+
+- Windows：双击 `install.bat`；
+- macOS：双击 `install.command`；
+- 任意平台：`node install.mjs`（加 `--dry-run` 先看计划，`--verify` 检查状态，`--uninstall` 卸载）。
+
+安装器只做本地文件复制与 DSH profile 注册，不联网、不需要 pnpm；离线 tarball 会留在 profile 的
+`.dsh-offline-plugins/` 里，之后用 pnpm 也能离线解析。装完重启 DSH Web，左侧栏出现「ArcVista 观界」。
+安装包自身说明见 `packaging/intranet/README.md`。
+
+内网安全团队需要审查时，生成配套的安全审查材料包：
+
+```bash
+npm run package:security-review
+# 生成 ../arc-vista-security-review/ 与 ../arc-vista-security-review.zip
+# 含文件清单、SHA-256、SBOM、静态扫描证据、可复现构建步骤与审批申请模板
+```
+
 ### 发布与商店
 
 - 发布包名：`dsh-arcvista`
