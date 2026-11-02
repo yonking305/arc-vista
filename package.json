@@ -1,6 +1,6 @@
 {
   "name": "dsh-arcvista",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "private": false,
   "type": "module",
   "description": "ArcVista 观界 —— DSH 内的架构观测台：本地项目、Git 克隆或批量 Git 导入，架构图、安全守护、知识图谱、复杂度与快照对比",
