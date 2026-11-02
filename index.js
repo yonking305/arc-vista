@@ -80,12 +80,21 @@ export function apply(ctx, config = {}) {
       return [];
     }
   };
+  const directoryPicker = () => {
+    try {
+      const service = typeof ctx.get === 'function' ? ctx.get('directoryPicker') : undefined;
+      return service?.capability?.() || null;
+    } catch {
+      return null;
+    }
+  };
   const app = createArcVistaApp({
     dataDir,
     publicDir: path.join(APP_ROOT, 'public'),
     backupDir,
     llm: createDshLlm(ctx),
     workspaces: listWorkspaces,
+    directoryPicker,
   });
 
   const handler = async (req, res) => {

@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { openStore } from './lib/store.js';
 import { inspectProject, listBranches } from './lib/local-git.js';
@@ -31,7 +32,7 @@ const HOST = process.env.HOST || '127.0.0.1';
  * router) without binding an HTTP port. The standalone CLI below uses it, and
  * the DSH plugin mounts the same router on the Harness web server.
  */
-export function createArcVistaApp({ dataDir = DATA_DIR, publicDir = PUBLIC_DIR, backupDir = null, llm = null, workspaces = () => [] } = {}) {
+export function createArcVistaApp({ dataDir = DATA_DIR, publicDir = PUBLIC_DIR, backupDir = null, llm = null, workspaces = () => [], directoryPicker = null } = {}) {
   const store = openStore(dataDir, backupDir ? { backupDir } : {});
   const jobs = new JobRunner(store);
   const interruptedJobs = store.jobs.interruptActive();
@@ -235,6 +236,65 @@ function snapshotOption(snapshot) {
   };
 }
 
+/** Directory browsing used when the host has no native OS chooser. */
+function browseDirectory(inputPath) {
+  let target = os.homedir();
+  if (inputPath) {
+    try {
+      target = path.resolve(String(inputPath));
+    } catch {
+      target = os.homedir();
+    }
+    try {
+      const stat = fs.statSync(target);
+      if (!stat.isDirectory()) target = path.dirname(target);
+    } catch {
+      target = os.homedir();
+    }
+  }
+  let dirents = [];
+  try {
+    dirents = fs.readdirSync(target, { withFileTypes: true });
+  } catch {
+    target = os.homedir();
+    dirents = fs.readdirSync(target, { withFileTypes: true });
+  }
+  const entries = dirents
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => ({
+      name: entry.name,
+      path: path.join(target, entry.name),
+      hidden: entry.name.startsWith('.'),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .slice(0, 500);
+  const crumbs = [];
+  let cursor = target;
+  while (true) {
+    crumbs.unshift({ name: path.basename(cursor) || cursor, path: cursor, hidden: false });
+    const parent = path.dirname(cursor);
+    if (parent === cursor) break;
+    cursor = parent;
+  }
+  return {
+    path: target,
+    home: os.homedir(),
+    crumbs,
+    entries,
+    truncated: false,
+  };
+}
+
+function pickerCapability() {
+  try {
+    const capability = directoryPicker?.();
+    if (capability?.kind) return capability;
+  } catch {
+    /* fall through to the local browser */
+  }
+  return { kind: 'browse', list: async (target) => browseDirectory(target), createDirectory: null };
+}
+
 /* ------------------------------------------------------------------ */
 /* routes                                                             */
 /* ------------------------------------------------------------------ */
@@ -250,6 +310,38 @@ router.get('/api/health', () => ({
   llm: publicLlmSettings(),
   uptime: Math.round(process.uptime()),
 }));
+
+router.get('/api/directory-picker', () => {
+  const capability = pickerCapability();
+  return {
+    available: Boolean(capability),
+    kind: capability?.kind || null,
+    native: capability?.kind === 'native',
+  };
+});
+
+router.get('/api/directory-picker/list', async ({ query }) => {
+  const capability = pickerCapability();
+  if (capability?.kind !== 'browse' || typeof capability.list !== 'function') {
+    throw badRequest('当前环境使用系统文件夹选择器');
+  }
+  return { listing: await capability.list(query.get('path') || undefined) };
+});
+
+router.post('/api/directory-picker/pick', async () => {
+  const capability = pickerCapability();
+  if (capability?.kind !== 'native' || typeof capability.pick !== 'function') {
+    return { path: null, browse: true };
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5 * 60 * 1000);
+  try {
+    const picked = await capability.pick(controller.signal);
+    return { path: picked || null };
+  } finally {
+    clearTimeout(timer);
+  }
+});
 
 router.get('/api/workspaces', async () => {
   try {

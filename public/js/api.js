@@ -28,6 +28,12 @@ export const api = {
 
   workspaces: () => request('/api/workspaces'),
 
+  directoryPicker: {
+    capability: () => request('/api/directory-picker'),
+    list: (directoryPath) => request(`/api/directory-picker/list?path=${encodeURIComponent(directoryPath || '')}`),
+    pick: () => request('/api/directory-picker/pick', { method: 'POST', body: '{}' }),
+  },
+
   products: {
     list: () => request('/api/products'),
     create: (payload) => request('/api/products', { method: 'POST', body: JSON.stringify(payload) }),

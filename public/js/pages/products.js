@@ -134,8 +134,12 @@ async function createModal(navigate) {
       </div>` : ''}
       <div class="field">
         <label for="np-path">本地项目目录</label>
-        <input class="input" id="np-path" placeholder="/Users/you/projects/my-app" />
-        <div class="help">填写绝对路径。ArcVista 直接分析当前工作区，不克隆、不拉取、不切换分支；分析产出写入项目内的 <span class="mono">.arcvista/</span>。</div>
+        <div class="row" style="gap:8px">
+          <input class="input" id="np-path" placeholder="/Users/you/projects/my-app" />
+          <button class="btn" id="np-pick" type="button" style="flex:none">选择文件夹</button>
+        </div>
+        <div id="np-browse" style="display:none;margin-top:10px;border:1px solid var(--border);border-radius:10px;padding:10px;max-height:260px;overflow:auto"></div>
+        <div class="help">填写绝对路径，或从系统/DSH 文件夹选择器选择。ArcVista 直接分析当前工作区，不克隆、不拉取、不切换分支；分析产出写入项目内的 <span class="mono">.arcvista/</span>。</div>
       </div>
       <div class="field">
         <label for="np-desc">一句话描述（可选）</label>
@@ -191,6 +195,75 @@ async function createModal(navigate) {
       pathInput.addEventListener('blur', () => {
         if (!nameInput.value.trim()) nameInput.value = pathName(pathInput.value);
       });
+
+      const choosePath = (selected) => {
+        if (!selected) return;
+        pathInput.value = selected;
+        if (!nameInput.value.trim()) nameInput.value = pathName(selected);
+        const browse = modal.querySelector('#np-browse');
+        if (browse) browse.style.display = 'none';
+      };
+
+      const pickButton = modal.querySelector('#np-pick');
+      const browseBox = modal.querySelector('#np-browse');
+      async function renderBrowser(directoryPath) {
+        browseBox.style.display = 'block';
+        browseBox.innerHTML = '<div class="help">正在读取目录…</div>';
+        try {
+          const response = await api.directoryPicker.list(directoryPath);
+          const listing = response.listing;
+          const parent = listing.crumbs?.[listing.crumbs.length - 2]?.path || listing.home;
+          browseBox.innerHTML = `
+            <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap">
+              <button class="btn btn--sm" type="button" data-browse-parent>↑ 上一级</button>
+              <button class="btn btn--sm btn--primary" type="button" data-browse-use>使用此目录</button>
+              <span class="mono" style="font-size:10px;color:var(--text-dim);word-break:break-all">${esc(listing.path)}</span>
+            </div>
+            <div style="margin-top:8px;display:grid;gap:2px">
+              ${listing.entries.length
+                ? listing.entries.map((entry) => `<button class="btn btn--sm" type="button" style="justify-content:flex-start" data-browse-dir="${esc(entry.path)}">${icon('folder', 12)} ${esc(entry.name)}</button>`).join('')
+                : '<div class="help">这个目录下没有子文件夹。</div>'}
+            </div>`;
+          browseBox.querySelector('[data-browse-parent]')?.addEventListener('click', () => renderBrowser(parent));
+          browseBox.querySelector('[data-browse-use]')?.addEventListener('click', () => choosePath(listing.path));
+          browseBox.querySelectorAll('[data-browse-dir]').forEach((button) => {
+            button.addEventListener('click', () => renderBrowser(button.dataset.browseDir));
+          });
+        } catch (error) {
+          browseBox.innerHTML = `<div class="banner banner--red" style="padding:8px 10px">${esc(error.message)}</div>`;
+        }
+      }
+
+      api.directoryPicker.capability()
+        .then((capability) => {
+          if (!capability?.available) {
+            pickButton.style.display = 'none';
+            return;
+          }
+          pickButton.textContent = capability.native ? '选择文件夹' : '浏览文件夹';
+          pickButton.addEventListener('click', async () => {
+            if (!capability.native) {
+              renderBrowser(pathInput.value.trim() || '');
+              return;
+            }
+            pickButton.disabled = true;
+            const original = pickButton.textContent;
+            pickButton.textContent = '等待选择…';
+            try {
+              const result = await api.directoryPicker.pick();
+              if (result?.path) choosePath(result.path);
+            } catch (error) {
+              toast('无法打开文件夹选择器', { type: 'error', detail: error.message });
+            } finally {
+              pickButton.disabled = false;
+              pickButton.textContent = original;
+            }
+          });
+        })
+        .catch(() => {
+          pickButton.style.display = 'none';
+        });
+
       nameInput.focus();
       modal.querySelector('[data-close-modal]')?.addEventListener('click', (event) => {
         event.preventDefault();
