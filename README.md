@@ -50,6 +50,23 @@ dsh plugin --profile web add dsh-arcvista
 dsh plugin --profile web add /absolute/path/to/arc-vista
 ```
 
+### 打包 TGZ
+
+生成可分发的 DSH 插件 tarball（含 SHA-256 和 manifest）：
+
+```bash
+npm run package:tgz
+# dist/dsh-arcvista-<version>.tgz
+# dist/dsh-arcvista-<version>.tgz.sha256
+# dist/dsh-arcvista-<version>.manifest.json
+```
+
+也可以双击项目根目录的 `打包 TGZ.command`。安装生成的包：
+
+```bash
+dsh plugin --profile web add /absolute/path/to/dsh-arcvista-<version>.tgz
+```
+
 ### 内网离线安装
 
 内网（无外网、无 npm registry）环境使用离线安装包，由仓库内的构建脚本生成：
