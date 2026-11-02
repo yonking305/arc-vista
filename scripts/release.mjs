@@ -102,6 +102,62 @@ function bumpVersion(base, kind) {
   return { major: base.major, minor: base.minor, patch: base.patch + 1 };
 }
 
+
+const LOCK_FILE = path.join(ROOT, '.release.lock');
+let lockHeld = false;
+
+function releaseLock() {
+  if (!lockHeld) return;
+  lockHeld = false;
+  try {
+    fs.rmSync(LOCK_FILE, { force: true });
+  } catch {
+    /* best-effort cleanup */
+  }
+}
+
+function acquireReleaseLock() {
+  try {
+    const fd = fs.openSync(LOCK_FILE, 'wx');
+    fs.writeFileSync(fd, JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString() }));
+    fs.closeSync(fd);
+    lockHeld = true;
+    process.once('exit', releaseLock);
+    for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+      process.once(signal, () => {
+        releaseLock();
+        process.exit(128 + (signal === 'SIGINT' ? 2 : signal === 'SIGTERM' ? 15 : 1));
+      });
+    }
+    return;
+  } catch (error) {
+    if (error.code !== 'EEXIST') throw error;
+    let stale = false;
+    try {
+      const meta = JSON.parse(fs.readFileSync(LOCK_FILE, 'utf8'));
+      if (!meta.pid) {
+        stale = true;
+      } else {
+        try {
+          process.kill(meta.pid, 0);
+        } catch {
+          stale = true;
+        }
+      }
+    } catch {
+      stale = true;
+    }
+    if (stale) {
+      fs.rmSync(LOCK_FILE, { force: true });
+      return acquireReleaseLock();
+    }
+    fail(
+      `another release is already running (lock: ${LOCK_FILE}).\n` +
+        'Close the other release terminal first. If it crashed, remove .release.lock and retry.',
+    );
+  }
+}
+
 async function main() {
   process.chdir(ROOT);
   const packageFile = path.join(ROOT, 'package.json');
@@ -110,6 +166,8 @@ async function main() {
 
   const pkg = JSON.parse(fs.readFileSync(packageFile, 'utf8'));
   if (pkg.name !== 'dsh-arcvista') fail(`expected package name dsh-arcvista, got ${pkg.name}`);
+
+  if (!dryRun) acquireReleaseLock();
 
   const branch = capture(GIT, ['rev-parse', '--abbrev-ref', 'HEAD']).stdout;
   const remote = capture(GIT, ['remote', 'get-url', 'origin']).stdout;

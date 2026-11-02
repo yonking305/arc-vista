@@ -12,3 +12,5 @@ logs/
 
 *.tgz
 dist/
+
+.release.lock
