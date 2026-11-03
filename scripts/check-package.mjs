@@ -7,6 +7,22 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const errors = [];
+const REQUIRED_FILES = [
+  'index.js',
+  'client.js',
+  'server.js',
+  'cordis.patch.yml',
+  'icon.svg',
+  'lib/store.js',
+  'lib/local-git.js',
+  'lib/analyze/index.js',
+  'public/index.html',
+  'public/js/app.js',
+  'locale/zh.json',
+];
+for (const file of REQUIRED_FILES) {
+  if (!fs.existsSync(path.join(root, file))) errors.push(`缺少必需文件：${file}`);
+}
 
 if (manifest.name !== 'dsh-arcvista') errors.push('package name must be dsh-arcvista');
 if (manifest.private === true) errors.push('private must be false for publishing');

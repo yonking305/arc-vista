@@ -463,6 +463,9 @@ function verifyInstallation({ profileDir, profile, payload, spec, quiet = false,
     if (payload && installed.version !== payload.version) {
       problems.push(`版本不一致：安装包 ${payload.version}，已安装 ${installed.version}`);
     }
+    for (const required of ['index.js', 'server.js', 'lib/store.js', 'lib/local-git.js', 'lib/analyze/index.js', 'public/index.html']) {
+      if (!fs.existsSync(path.join(target, required))) problems.push(`插件文件缺失：${required}`);
+    }
   }
   const tarballVersion = payload?.version ?? installedVersion;
   if (tarballVersion) {

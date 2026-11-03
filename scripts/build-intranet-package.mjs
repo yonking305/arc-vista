@@ -150,7 +150,7 @@ function main() {
   if (!fs.existsSync(path.join(packedDir, 'package.json'))) fail('解包后缺少 package/package.json');
   const packedManifest = JSON.parse(fs.readFileSync(path.join(packedDir, 'package.json'), 'utf8'));
   if (packedManifest.version !== version) fail(`解包版本 ${packedManifest.version} 与 ${version} 不一致`);
-  for (const required of ['index.js', 'client.js', 'server.js', 'cordis.patch.yml', 'public/index.html', 'lib/http.js']) {
+  for (const required of ['index.js', 'client.js', 'server.js', 'cordis.patch.yml', 'public/index.html', 'lib/http.js', 'lib/store.js', 'lib/local-git.js', 'lib/analyze/index.js']) {
     if (!fs.existsSync(path.join(packedDir, required))) fail(`tarball 缺少 ${required}（files 白名单可能配置有误）`);
   }
   for (const forbidden of ['data', 'backups', 'logs', 'node_modules']) {
