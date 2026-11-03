@@ -52,13 +52,22 @@ dsh plugin --profile web add /absolute/path/to/arc-vista
 
 ### 打包 TGZ
 
-生成可分发的 DSH 插件 tarball（含 SHA-256 和 manifest）：
+生成可分发的 DSH 插件 tarball（含 SHA-256 和 manifest），并同时生成一个内网传输用的 `.txt` 包：
 
 ```bash
 npm run package:tgz
 # dist/dsh-arcvista-<version>.tgz
 # dist/dsh-arcvista-<version>.tgz.sha256
+# dist/dsh-arcvista-<version>.txt          ← 头部为 74 78 74 0A（"txt\n"）+ 原始 tgz
+# dist/dsh-arcvista-<version>.txt.sha256
 # dist/dsh-arcvista-<version>.manifest.json
+```
+
+`.txt` 只是 tarball 的传输容器，不是文本内容；内网收到后还原：
+
+```bash
+node scripts/restore-tgz.mjs dist/dsh-arcvista-<version>.txt
+# 生成 dist/dsh-arcvista-<version>.tgz
 ```
 
 也可以双击项目根目录的 `打包 TGZ.command`。安装生成的包：
@@ -66,6 +75,8 @@ npm run package:tgz
 ```bash
 dsh plugin --profile web add /absolute/path/to/dsh-arcvista-<version>.tgz
 ```
+
+不需要 `.txt` 时使用 `npm run package:tgz -- --no-txt`。
 
 ### 内网离线安装
 

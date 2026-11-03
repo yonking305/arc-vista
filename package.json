@@ -60,7 +60,8 @@
     "release": "node scripts/release.mjs",
     "release:dry": "node scripts/release.mjs --dry-run",
     "package:tgz": "node scripts/package-tgz.mjs",
-    "package:tgz:quick": "node scripts/package-tgz.mjs --skip-tests"
+    "package:tgz:quick": "node scripts/package-tgz.mjs --skip-tests",
+    "restore:tgz": "node scripts/restore-tgz.mjs"
   },
   "dsh": {
     "bundle": {

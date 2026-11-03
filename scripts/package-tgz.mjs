@@ -30,6 +30,7 @@ const valueOf = (name) => {
   return index >= 0 ? args[index + 1] : null;
 };
 const skipTests = has('--skip-tests');
+const noTxt = has('--no-txt');
 const outArg = valueOf('--out');
 const outDir = path.resolve(ROOT, outArg || 'dist');
 
@@ -110,6 +111,25 @@ function main() {
   const shaFile = `${tarball}.sha256`;
   fs.writeFileSync(shaFile, `${hash}  ${base}\n`, { mode: 0o600 });
 
+  // Intranet transfer often requires a .txt container with the literal bytes
+  // "txt\n" (74 78 74 0A) in front of the tarball. Keep the raw .tgz too.
+  let txtInfo = null;
+  if (!noTxt) {
+    const txtName = `${path.basename(tarball, '.tgz')}.txt`;
+    const txtFile = path.join(outDir, txtName);
+    const prefix = Buffer.from('txt\n', 'ascii');
+    fs.writeFileSync(txtFile, Buffer.concat([prefix, fs.readFileSync(tarball)]), { mode: 0o644 });
+    const txtHash = sha256(txtFile);
+    fs.writeFileSync(`${txtFile}.sha256`, `${txtHash}  ${txtName}\n`, { mode: 0o600 });
+    txtInfo = {
+      file: txtName,
+      path: txtFile,
+      bytes: fs.statSync(txtFile).size,
+      sha256: txtHash,
+      prefixHex: '74 78 74 0a',
+    };
+  }
+
   const info = {
     name: manifest.name,
     version: manifest.version,
@@ -121,6 +141,7 @@ function main() {
     commit: git(['rev-parse', 'HEAD']),
     dirty: Boolean(git(['status', '--porcelain'])),
     installCommand: `dsh plugin --profile web add ${tarball}`,
+    ...(txtInfo ? { txt: txtInfo } : {}),
   };
   const manifestFile = `${tarball.replace(/\.tgz$/, '')}.manifest.json`;
   fs.writeFileSync(manifestFile, `${JSON.stringify(info, null, 2)}\n`, { mode: 0o600 });
@@ -130,8 +151,17 @@ function main() {
   console.log(`  大小      ${(bytes / 1024).toFixed(1)} kB`);
   console.log(`  SHA256    ${hash}`);
   if (info.dirty) console.log('  警告      工作区不干净，tarball 会包含未提交的文件');
+  if (txtInfo) {
+    console.log(`  TXT 包    ${txtInfo.path}`);
+    console.log(`  TXT 头    74 78 74 0a（"txt\\n"）`);
+    console.log(`  TXT SHA   ${txtInfo.sha256}`);
+  }
   console.log('\n本地安装命令：');
   console.log(`  ${info.installCommand}`);
+  if (txtInfo) {
+    console.log('\n内网还原 TXT 包：');
+    console.log(`  node scripts/restore-tgz.mjs ${JSON.stringify(txtInfo.path)}`);
+  }
   console.log('\n查看内容：');
   console.log(`  tar -tzf ${JSON.stringify(tarball)} | head -30`);
 }
