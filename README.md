@@ -78,6 +78,27 @@ dsh plugin --profile web add /absolute/path/to/dsh-arcvista-<version>.tgz
 
 不需要 `.txt` 时使用 `npm run package:tgz -- --no-txt`。
 
+### 打包源码 ZIP
+
+把已提交的源码打包为 ZIP，并生成内网传输用的 `.txt`：
+
+```bash
+npm run package:source
+# dist/arc-vista-source-<version>.zip
+# dist/arc-vista-source-<version>.zip.sha256
+# dist/arc-vista-source-<version>.txt          ← 74 78 74 0A + ZIP
+# dist/arc-vista-source-<version>.txt.sha256
+# dist/arc-vista-source-<version>.manifest.json
+```
+
+源码 ZIP 来自 `git archive HEAD`，只包含已提交文件，不包含 `.git`、`data/`、`backups/`、`node_modules/`、`dist/`。内网还原：
+
+```bash
+node scripts/restore-tgz.mjs dist/arc-vista-source-<version>.txt dist/arc-vista-source-<version>.zip
+```
+
+不需要 TXT 时使用 `--no-txt`。
+
 ### 内网离线安装
 
 内网（无外网、无 npm registry）环境使用离线安装包，由仓库内的构建脚本生成：
